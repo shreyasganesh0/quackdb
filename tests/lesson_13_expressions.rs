@@ -1,0 +1,245 @@
+//! Lesson 13: Expression Evaluation Tests
+
+use quackdb::types::{LogicalType, ScalarValue};
+use quackdb::vector::Vector;
+use quackdb::chunk::DataChunk;
+use quackdb::execution::expression::*;
+
+#[test]
+fn test_constant_expression() {
+    let chunk = DataChunk::new(&[LogicalType::Int32]);
+    let expr = Expression::Constant(ScalarValue::Int32(42));
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(42));
+}
+
+#[test]
+fn test_column_ref_expression() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
+    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Int64(100)]);
+    chunk.append_row(&[ScalarValue::Int32(20), ScalarValue::Int64(200)]);
+
+    let expr = Expression::ColumnRef(0);
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(10));
+    assert_eq!(result.get_value(1), ScalarValue::Int32(20));
+}
+
+#[test]
+fn test_binary_add() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Int32(5)]);
+    chunk.append_row(&[ScalarValue::Int32(20), ScalarValue::Int32(3)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Add,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::ColumnRef(1)),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(15));
+    assert_eq!(result.get_value(1), ScalarValue::Int32(23));
+}
+
+#[test]
+fn test_binary_subtract() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(100)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Subtract,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::Constant(ScalarValue::Int32(30))),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(70));
+}
+
+#[test]
+fn test_binary_multiply() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(7)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Multiply,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::Constant(ScalarValue::Int32(6))),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(42));
+}
+
+#[test]
+fn test_comparison_equal() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+    chunk.append_row(&[ScalarValue::Int32(10)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Equal,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::Constant(ScalarValue::Int32(42))),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(true));
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(false));
+}
+
+#[test]
+fn test_comparison_less_than() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(5)]);
+    chunk.append_row(&[ScalarValue::Int32(15)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::LessThan,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::Constant(ScalarValue::Int32(10))),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(true));
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(false));
+}
+
+#[test]
+fn test_boolean_and() {
+    let mut chunk = DataChunk::new(&[LogicalType::Boolean, LogicalType::Boolean]);
+    chunk.append_row(&[ScalarValue::Boolean(true), ScalarValue::Boolean(true)]);
+    chunk.append_row(&[ScalarValue::Boolean(true), ScalarValue::Boolean(false)]);
+    chunk.append_row(&[ScalarValue::Boolean(false), ScalarValue::Boolean(true)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::And,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::ColumnRef(1)),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(true));
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(false));
+    assert_eq!(result.get_value(2), ScalarValue::Boolean(false));
+}
+
+#[test]
+fn test_unary_negate() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+    chunk.append_row(&[ScalarValue::Int32(-10)]);
+
+    let expr = Expression::UnaryOp {
+        op: UnaryOp::Negate,
+        expr: Box::new(Expression::ColumnRef(0)),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(-42));
+    assert_eq!(result.get_value(1), ScalarValue::Int32(10));
+}
+
+#[test]
+fn test_unary_not() {
+    let mut chunk = DataChunk::new(&[LogicalType::Boolean]);
+    chunk.append_row(&[ScalarValue::Boolean(true)]);
+    chunk.append_row(&[ScalarValue::Boolean(false)]);
+
+    let expr = Expression::UnaryOp {
+        op: UnaryOp::Not,
+        expr: Box::new(Expression::ColumnRef(0)),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(false));
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(true));
+}
+
+#[test]
+fn test_unary_is_null() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+    chunk.append_row(&[ScalarValue::Null(LogicalType::Int32)]);
+
+    let expr = Expression::UnaryOp {
+        op: UnaryOp::IsNull,
+        expr: Box::new(Expression::ColumnRef(0)),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(false));
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(true));
+}
+
+#[test]
+fn test_cast_expression() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+
+    let expr = Expression::Cast {
+        expr: Box::new(Expression::ColumnRef(0)),
+        target_type: LogicalType::Float64,
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Float64(42.0));
+}
+
+#[test]
+fn test_nested_expression() {
+    // (a + b) * 2
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(3), ScalarValue::Int32(4)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Multiply,
+        left: Box::new(Expression::BinaryOp {
+            op: BinaryOp::Add,
+            left: Box::new(Expression::ColumnRef(0)),
+            right: Box::new(Expression::ColumnRef(1)),
+        }),
+        right: Box::new(Expression::Constant(ScalarValue::Int32(2))),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    assert_eq!(result.get_value(0), ScalarValue::Int32(14));
+}
+
+#[test]
+fn test_null_propagation() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Null(LogicalType::Int32)]);
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Add,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::ColumnRef(1)),
+    };
+
+    let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
+    // NULL + anything = NULL
+    assert!(!result.validity().is_valid(0));
+}
+
+#[test]
+fn test_expression_result_type() {
+    let types = vec![LogicalType::Int32, LogicalType::Int64];
+
+    let expr = Expression::BinaryOp {
+        op: BinaryOp::Add,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::ColumnRef(1)),
+    };
+    let result_type = expr.result_type(&types).unwrap();
+    // Int32 + Int64 should produce Int64
+    assert_eq!(result_type, LogicalType::Int64);
+
+    let cmp = Expression::BinaryOp {
+        op: BinaryOp::Equal,
+        left: Box::new(Expression::ColumnRef(0)),
+        right: Box::new(Expression::Constant(ScalarValue::Int32(5))),
+    };
+    assert_eq!(cmp.result_type(&types).unwrap(), LogicalType::Boolean);
+}

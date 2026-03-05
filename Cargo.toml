@@ -1,0 +1,194 @@
+[package]
+name = "quackdb"
+version = "0.1.0"
+edition = "2021"
+description = "A distributed analytical database built from scratch in Rust"
+
+[dependencies]
+thiserror = "1"
+byteorder = "1"
+crc32fast = "1"
+
+[dev-dependencies]
+rand = "0.8"
+
+[features]
+lesson01 = []
+lesson02 = ["lesson01"]
+lesson03 = ["lesson02"]
+lesson04 = ["lesson03"]
+lesson05 = ["lesson04"]
+lesson06 = ["lesson05"]
+lesson07 = ["lesson06"]
+lesson08 = ["lesson07"]
+lesson09 = ["lesson08"]
+lesson10 = ["lesson09"]
+lesson11 = ["lesson10"]
+lesson12 = ["lesson11"]
+lesson13 = ["lesson12"]
+lesson14 = ["lesson13"]
+lesson15 = ["lesson14"]
+lesson16 = ["lesson15"]
+lesson17 = ["lesson16"]
+lesson18 = ["lesson17"]
+lesson19 = ["lesson18"]
+lesson20 = ["lesson19"]
+lesson21 = ["lesson20"]
+lesson22 = ["lesson21"]
+lesson23 = ["lesson22"]
+lesson24 = ["lesson23"]
+lesson25 = ["lesson24"]
+lesson26 = ["lesson25"]
+lesson27 = ["lesson26"]
+lesson28 = ["lesson27"]
+lesson29 = ["lesson28"]
+lesson30 = ["lesson29"]
+lesson31 = ["lesson30"]
+lesson32 = ["lesson31"]
+lesson33 = ["lesson32"]
+lesson34 = ["lesson33"]
+lesson35 = ["lesson34"]
+
+[[test]]
+name = "lesson_01_arena"
+required-features = ["lesson01"]
+
+[[test]]
+name = "lesson_02_types"
+required-features = ["lesson02"]
+
+[[test]]
+name = "lesson_03_vectors"
+required-features = ["lesson03"]
+
+[[test]]
+name = "lesson_04_chunks"
+required-features = ["lesson04"]
+
+[[test]]
+name = "lesson_05_rle"
+required-features = ["lesson05"]
+
+[[test]]
+name = "lesson_06_dictionary"
+required-features = ["lesson06"]
+
+[[test]]
+name = "lesson_07_bitpack_delta"
+required-features = ["lesson07"]
+
+[[test]]
+name = "lesson_08_compression_frame"
+required-features = ["lesson08"]
+
+[[test]]
+name = "lesson_09_pages"
+required-features = ["lesson09"]
+
+[[test]]
+name = "lesson_10_buffer_pool"
+required-features = ["lesson10"]
+
+[[test]]
+name = "lesson_11_columnar_write"
+required-features = ["lesson11"]
+
+[[test]]
+name = "lesson_12_columnar_read"
+required-features = ["lesson12"]
+
+[[test]]
+name = "lesson_13_expressions"
+required-features = ["lesson13"]
+
+[[test]]
+name = "lesson_14_pipelines"
+required-features = ["lesson14"]
+
+[[test]]
+name = "lesson_15_scan_filter_project"
+required-features = ["lesson15"]
+
+[[test]]
+name = "lesson_16_hash_aggregate"
+required-features = ["lesson16"]
+
+[[test]]
+name = "lesson_17_hash_join"
+required-features = ["lesson17"]
+
+[[test]]
+name = "lesson_18_sort_merge_join"
+required-features = ["lesson18"]
+
+[[test]]
+name = "lesson_19_external_sort"
+required-features = ["lesson19"]
+
+[[test]]
+name = "lesson_20_sql_lexer"
+required-features = ["lesson20"]
+
+[[test]]
+name = "lesson_21_sql_parser"
+required-features = ["lesson21"]
+
+[[test]]
+name = "lesson_22_logical_plan"
+required-features = ["lesson22"]
+
+[[test]]
+name = "lesson_23_binder_catalog"
+required-features = ["lesson23"]
+
+[[test]]
+name = "lesson_24_physical_plan"
+required-features = ["lesson24"]
+
+[[test]]
+name = "lesson_25_rule_optimizer"
+required-features = ["lesson25"]
+
+[[test]]
+name = "lesson_26_cost_optimizer"
+required-features = ["lesson26"]
+
+[[test]]
+name = "lesson_27_mvcc"
+required-features = ["lesson27"]
+
+[[test]]
+name = "lesson_28_wal"
+required-features = ["lesson28"]
+
+[[test]]
+name = "lesson_29_morsel_parallel"
+required-features = ["lesson29"]
+
+[[test]]
+name = "lesson_30_window_functions"
+required-features = ["lesson30"]
+
+[[test]]
+name = "lesson_31_partitioning"
+required-features = ["lesson31"]
+
+[[test]]
+name = "lesson_32_distributed_plan"
+required-features = ["lesson32"]
+
+[[test]]
+name = "lesson_33_shuffle_exchange"
+required-features = ["lesson33"]
+
+[[test]]
+name = "lesson_34_adaptive_execution"
+required-features = ["lesson34"]
+
+[[test]]
+name = "lesson_35_simd_vectorization"
+required-features = ["lesson35"]
+
+[[bench]]
+name = "micro"
+harness = false
