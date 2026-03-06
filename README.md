@@ -37,6 +37,28 @@ make all
 - Lessons are feature-gated (`lesson01` through `lesson35`), each enabling all prior lessons
 - Only the code needed for a given lesson is compiled
 
+## New to Rust?
+
+Each lesson includes a hint file that teaches the Rust concepts you'll need.
+
+```bash
+# View hints for lesson 01
+make hint LESSON=01
+
+# List all concept reference files
+make concepts
+
+# Read a specific concept
+cat hints/concepts/ownership_and_borrowing.md
+```
+
+- **`hints/lesson_NN.md`** — what you're building, which Rust concepts apply,
+  key patterns with examples, and a step-by-step implementation order
+- **`hints/concepts/`** — self-contained reference files for each Rust concept,
+  with examples. Assumes you know another language but not Rust.
+
+The hints never give away the solution. If you already know Rust, skip them.
+
 ## Curriculum
 
 ### Part I: Foundations (L01-L04)

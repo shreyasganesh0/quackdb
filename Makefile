@@ -43,7 +43,7 @@ TEST_35 := lesson_35_simd_vectorization
 
 TEST_NAME := $(TEST_$(LESSON_NUM))
 
-.PHONY: lesson upto all check clean
+.PHONY: lesson upto all check clean hint concepts
 
 # Run a single lesson's tests
 lesson:
@@ -74,3 +74,17 @@ check:
 
 clean:
 	cargo clean
+
+# Show hints for a lesson
+hint:
+	@HINT_FILE="hints/lesson_$(LESSON_NUM).md"; \
+	if [ -f "$$HINT_FILE" ]; then \
+		cat "$$HINT_FILE"; \
+	else \
+		echo "No hints available for lesson $(LESSON_NUM)"; \
+	fi
+
+# List available concept reference files
+concepts:
+	@echo "=== Rust Concept Reference Files ==="
+	@ls -1 hints/concepts/*.md 2>/dev/null | sed 's|hints/concepts/||;s|\.md$$||' | sort
