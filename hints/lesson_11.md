@@ -3,6 +3,11 @@
 ## What You're Building
 A streaming columnar file writer that produces a Parquet-like file format: magic bytes, followed by row groups containing column chunks, and a footer at the end with schema and statistics metadata. The writer is generic over `W: Write`, so it can write to files, in-memory buffers, or network streams. This is the write half of the storage format that the reader (Lesson 12) will consume.
 
+**Core concept count: 2** — the streaming file format (header/data/footer layout) and column statistics tracking. Everything else (generic writer, row group state machine, serialization) is scaffolding.
+
+## Where to Start
+Start with `ColumnStats` (simple min/max/null tracking — 3 small functions), then the `FileFooter` serialization (`to_bytes`/`from_bytes`), then the writer pipeline (`new` → `begin_row_group` → `write_column` → `end_row_group` → `finish`). The stats and footer are self-contained; the writer just orchestrates them.
+
 ## Concept Recap
 Building on Lesson 10: You built the buffer pool for caching pages in memory. Now you will create the file format that organizes column data on disk. The writer uses `DataChunk` (from Lesson 04) as its input and produces a self-contained file with embedded schema and statistics metadata. The `CompressionFrame` format from Lesson 08 can be used to compress individual column chunks.
 

@@ -3,6 +3,8 @@
 ## What You're Building
 A buffer pool manager that caches a fixed number of pages in memory and evicts the least-recently-used page when space runs out. It sits between the execution engine and disk, providing `fetch_page`, `unpin_page`, `new_page`, and `flush_page` operations. The disk backend is abstracted behind a `DiskManager` trait, allowing an in-memory implementation for testing and a file-backed one for production.
 
+**Core concept count: 2** — page caching and LRU eviction. Everything else (DiskManager trait, pin/unpin protocol, page table HashMap) is scaffolding that supports these two.
+
 > **Unified Concept:** This is ONE concept with three faces: **fetch** (load a page from disk into memory), **pin/unpin** (reference counting so in-use pages are not evicted), and **evict** (make room by writing a dirty page back and freeing its frame). They are phases of the same lifecycle: a page is fetched, pinned while in use, unpinned when done, and eventually evicted to make room for another. The DiskManager, LRU list, and page table are just the bookkeeping that makes this lifecycle work.
 
 ## Concept Recap

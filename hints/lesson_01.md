@@ -7,6 +7,8 @@ then free everything at once instead of tracking individual allocations. Your ar
 manages `Vec<Vec<u8>>` blocks, an `ArenaString` type backed by raw pointers, and a
 `ScopedArena` that can roll back to a checkpoint.
 
+**Core concept count: 2** — bump allocation (advance an offset through a block) and block management (allocate new blocks when full). Everything else (ArenaString, ScopedArena, alignment) is scaffolding that supports these two.
+
 ## Rust Concepts You'll Need
 - [Structs and Impl](../concepts/structs_and_impl.md) -- Arena fields (blocks, offset, block_size) and methods
 - [Ownership and Borrowing](../concepts/ownership_and_borrowing.md) -- returning `&mut [u8]` that borrows from the arena

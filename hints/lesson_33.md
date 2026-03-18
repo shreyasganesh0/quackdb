@@ -3,6 +3,8 @@
 ## What You're Building
 The data movement operators that physically transfer data chunks between threads (simulating nodes) in a distributed execution. ExchangeChannel provides a typed communication pipe using Rust's mpsc channels. ShuffleOperator routes outgoing data to the correct partition via hashing. GatherOperator merges results from multiple sources. BroadcastOperator replicates data to all receivers. Together, these implement the exchange types planned in Lesson 32.
 
+**Core concept count: 2** — the exchange channel abstraction and hash-based routing. Everything else (gather, broadcast, sentinel termination) is scaffolding that supports these two.
+
 > **Unified Concept:** Shuffle, gather, and broadcast are all ONE concept: data movement between nodes. The channel is the pipe, and the three operators are just different routing strategies (hash-route, merge, or copy-to-all). Learn the channel abstraction first, then each operator is a thin wrapper that decides *where* to send each chunk.
 
 ## Concept Recap

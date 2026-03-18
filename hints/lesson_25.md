@@ -3,6 +3,8 @@
 ## What You're Building
 A rule-based query optimizer that transforms a logical plan into a more efficient equivalent. Each rule (predicate pushdown, projection pushdown, constant folding, filter merge, limit pushdown) is a struct implementing the `OptimizerRule` trait. The `optimize()` function applies all rules in a loop until the plan stops changing (fixpoint iteration). This is how real databases make queries faster without changing their meaning.
 
+**Core concept count: 2** — the recursive tree-rewrite pattern and fixpoint iteration. Everything else (individual rule structs, trait objects, column remapping) is scaffolding that supports these two.
+
 > **Unified Concept:** Learn **PredicatePushdown** first -- it is the most important rule and teaches the recursive-rewrite pattern that all 5 rules share. Each rule implements `apply(plan) -> plan`, recursing into children first, then pattern-matching the current node. The only difference between rules is *which* pattern each one looks for. Once you can write PredicatePushdown (match Filter-over-Projection, swap them), the other 4 rules are the same skeleton with different match conditions: ConstantFolding matches Literal-op-Literal, FilterMerge matches Filter-over-Filter, ProjectionPushdown matches Projection-over-Scan, and LimitPushdown matches Limit-over-Sort.
 
 ## Concept Recap

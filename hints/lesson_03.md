@@ -6,6 +6,8 @@ a single type in a contiguous byte buffer (`Vec<u8>`), plus a ValidityMask bitma
 track NULLs. Unlike row-oriented storage, columnar vectors let the engine process one
 column at a time, enabling SIMD-friendly tight loops and better cache utilization.
 
+**Core concept count: 2** — the byte-buffer Vector (typed access over raw bytes) and the ValidityMask (bitmask NULL tracking). Everything else (constant vectors, selection vectors, varchar layout) is scaffolding that supports these two.
+
 ## Concept Recap
 Building on Lesson 02: You defined `LogicalType` (for column schemas) and `ScalarValue` (for individual values). Now you will build the `Vector` that stores entire columns of data, using `LogicalType.byte_width()` to size the internal byte buffer and `ScalarValue` for get/set operations.
 

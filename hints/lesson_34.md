@@ -3,6 +3,8 @@
 ## What You're Building
 An adaptive query execution layer that adjusts strategies at runtime based on observed data characteristics. The centerpiece is a Bloom filter -- a probabilistic data structure that can quickly test set membership with no false negatives but a controlled false positive rate. This enables runtime filter pushdown: after building one side of a join, construct a Bloom filter of join keys and use it to pre-filter the other side. The lesson also covers adaptive parallelism, which dynamically scales worker count based on runtime statistics like throughput and cardinality.
 
+**Core concept count: 2** — the Bloom filter data structure and the runtime adaptation pattern. Everything else (optimal sizing formulas, hash seeds, adaptive parallelism scaling) is scaffolding that supports these two.
+
 > **Unified Concept:** The Bloom filter is a self-contained data structure (like the MinHeap in L19) -- implement it first and move on. The real lesson is **runtime adaptation**: adjusting execution strategy based on data you observe *during* query execution, not before. The Bloom filter is one mechanism (skip probe rows that cannot match); adaptive parallelism is another (scale workers up or down based on throughput). Both serve the same idea -- react to reality instead of relying solely on the cost model's estimates from L26.
 
 ## Concept Recap

@@ -3,6 +3,8 @@
 ## What You're Building
 A recursive descent parser that transforms tokens into an Abstract Syntax Tree (AST). The AST has Statement (Select, CreateTable, Insert, Drop), Expr (recursive with Box for binary ops, unary ops, CASE, BETWEEN), and TableRef (recursive with Box for joins and subqueries). Expression parsing uses Pratt parsing with binding power to handle precedence. This parser turns flat tokens into the tree structure the database engine operates on.
 
+**Core concept count: 2** — the AST data structure and the Pratt parsing algorithm. Everything else (helpers, statement variants, special syntax) is scaffolding that supports these two.
+
 > **Unified Concept:** The AST is a data structure, the parser is the algorithm. Together they are ONE concept: turning tokens into trees. The AST file defines *what* the tree looks like; the parser file defines *how* to build it. You cannot understand one without the other -- they are two halves of the same idea, split for code organization.
 
 ## Concept Recap

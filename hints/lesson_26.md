@@ -5,6 +5,8 @@ A cost-based optimizer comprising three parts: column statistics and cardinality
 
 > **Unified Concept:** This lesson has three layers, but they are a pipeline: statistics feed into the cost model, the cost model feeds into join ordering. You do not need to understand all three at once. Start with statistics (just counting things), then cost model (just arithmetic on those counts), then join ordering (just picking the cheapest combination). Each layer only uses the one before it.
 
+**Core concept count: 3** — statistics, cost estimation, and join ordering. While these span three files, each file teaches exactly one concept, and they form a linear pipeline: statistics → cost model → join order.
+
 ## Where to Start
 This lesson spans 3 files with 6 TODO functions. Work through them in order -- each file builds on the previous:
 

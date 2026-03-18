@@ -3,6 +3,8 @@
 ## What You're Building
 A catalog that stores table definitions and their data, and a binder that resolves column names, checks types, and translates parsed SQL (AST) into a logical plan. The catalog is the database's "phone book" -- it maps table names to their column schemas. The binder walks the AST, looks up names in the catalog, and produces a fully resolved `LogicalPlan` where every column reference has a concrete index and type.
 
+**Core concept count: 2** — the catalog (metadata storage) and name resolution (binding). Everything else (scope tracking, wildcard expansion, error variants) is scaffolding that supports these two.
+
 > **Unified Concept:** Catalog stores metadata, binder resolves names -- together they are ONE concept: name resolution. The catalog is passive data (a phone book), the binder is the active lookup process (dialing the number). They are split into separate files because one is a data structure and the other is an algorithm, but the concept is singular: turning string names into resolved, typed references.
 
 ## Concept Recap

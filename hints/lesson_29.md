@@ -3,6 +3,8 @@
 ## What You're Building
 A morsel-driven parallel execution framework that divides work into small chunks (morsels) and distributes them across worker threads. This is the approach used by modern analytical databases to achieve intra-query parallelism -- rather than partitioning data statically, workers dynamically steal morsels from a shared queue, naturally balancing load across cores.
 
+**Core concept count: 2** — the morsel queue (thread-safe work distribution) and the worker loop (take-process-push). Everything else (Arc/Mutex wrappers, factory closures, collector) is scaffolding that supports these two.
+
 > **Unified Concept:** The morsel queue and the scheduler are ONE concept: parallel execution via dynamic work distribution. The queue is the shared work pool, the scheduler spawns workers that drain it. Think of it as a single pattern -- "take work, process it, store result" -- running on multiple threads simultaneously.
 
 ## Concept Recap

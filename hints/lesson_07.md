@@ -8,6 +8,8 @@ which are often tiny for sorted or sequential data like timestamps. Combined, th
 compress a column of sequential timestamps from 8 bytes/value down to fractions of a
 byte.
 
+**Core concept count: 2** — bitpacking and delta encoding. Everything else (frame-of-reference, bits_required, compression_ratio) is scaffolding that supports these two.
+
 > **Unified Concept:** While this lesson spans two files, both serve ONE concept: integer compression. Bitpacking reduces bit-width, delta reduces value magnitude. They combine in `delta_bitpack`. Think of them as two stages of a single compression pipeline, split into separate files only for code organization.
 
 ## Concept Recap
