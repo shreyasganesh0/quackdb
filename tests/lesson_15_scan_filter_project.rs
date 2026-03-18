@@ -33,7 +33,7 @@ fn test_filter_equality() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 1);
+    assert_eq!(total, 1, "equality filter should pass through only the single matching row");
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn test_filter_range() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 2); // rows with id=3 and id=4
+    assert_eq!(total, 2, "compound AND predicate should narrow results to rows satisfying both conditions");
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn test_filter_no_matches() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 0);
+    assert_eq!(total, 0, "filter should produce zero rows when no data satisfies the predicate");
 }
 
 #[test]
@@ -98,8 +98,8 @@ fn test_projection_columns() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let chunk = &results[0];
-    assert_eq!(chunk.column_count(), 2);
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Float64(1.5));
+    assert_eq!(chunk.column_count(), 2, "projection should reduce output to only the requested columns");
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Float64(1.5), "projection should reorder columns: col2 is now first in output");
     assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int32(1));
 }
 
@@ -121,7 +121,7 @@ fn test_projection_expression() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let chunk = &results[0];
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(10));
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(10), "projection can compute expressions, not just pass through columns");
     assert_eq!(chunk.column(0).get_value(4), ScalarValue::Int32(50));
 }
 
@@ -147,11 +147,11 @@ fn test_filter_then_project() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 3); // rows 3, 4, 5
+    assert_eq!(total, 3, "filter-then-project: filter reduces rows first, projection selects columns from survivors");
 
     // Check values are from column 1 (Int64)
     let chunk = &results[0];
-    assert_eq!(*chunk.column(0).logical_type(), LogicalType::Int64);
+    assert_eq!(*chunk.column(0).logical_type(), LogicalType::Int64, "projection output type should match the projected column's type");
 }
 
 #[test]
@@ -175,5 +175,5 @@ fn test_filter_with_nulls() {
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
     // NULL > 5 is NULL (falsy), so only rows with 10 and 30 match
-    assert_eq!(total, 2);
+    assert_eq!(total, 2, "NULL comparisons are falsy in SQL: NULL > 5 is not true, so NULL rows are filtered out");
 }

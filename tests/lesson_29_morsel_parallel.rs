@@ -21,7 +21,7 @@ fn make_chunks(n: usize, rows_per_chunk: usize) -> Vec<DataChunk> {
 fn test_morsel_queue_creation() {
     let chunks = make_chunks(4, 100);
     let queue = MorselQueue::new(chunks);
-    assert_eq!(queue.total(), 4);
+    assert_eq!(queue.total(), 4, "morsel queue should track the total number of chunks enqueued");
     assert_eq!(queue.remaining(), 4);
 }
 
@@ -36,7 +36,7 @@ fn test_morsel_queue_consumption() {
 
     let m2 = queue.take().unwrap();
     let m3 = queue.take().unwrap();
-    assert!(queue.take().is_none());
+    assert!(queue.take().is_none(), "exhausted morsel queue should return None to signal workers to stop");
     assert_eq!(queue.remaining(), 0);
 }
 
@@ -63,7 +63,7 @@ fn test_morsel_queue_thread_safe() {
 
     let results = collector.into_results();
     let total_rows: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total_rows, 1000); // 100 chunks * 10 rows
+    assert_eq!(total_rows, 1000, "morsel-driven parallelism must process every row exactly once across all worker threads");
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn test_parallel_collector() {
     collector.push(chunk);
 
     let results = collector.into_results();
-    assert_eq!(results.len(), 1);
+    assert_eq!(results.len(), 1, "ParallelCollector should gather chunks from all threads into one result set");
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn test_parallel_scan_filter() {
     let results = Arc::try_unwrap(collector).unwrap().into_results();
     let total_rows: usize = results.iter().map(|c| c.count()).sum();
     // Values 0..1000, those > 50 = 949
-    assert_eq!(total_rows, 949);
+    assert_eq!(total_rows, 949, "parallel filter should produce the same result as sequential -- values 51..999 = 949 rows");
 }
 
 #[test]
@@ -139,6 +139,6 @@ fn test_parallel_deterministic_results() {
         executor.execute(queue, || Box::new(Passthrough), collector.clone()).unwrap();
         let results = Arc::try_unwrap(collector).unwrap().into_results();
         let total: usize = results.iter().map(|c| c.count()).sum();
-        assert_eq!(total, 400);
+        assert_eq!(total, 400, "parallel passthrough must yield deterministic row counts regardless of thread scheduling");
     }
 }

@@ -38,7 +38,7 @@ fn test_catalog_create_get() {
 #[test]
 fn test_catalog_table_not_found() {
     let catalog = setup_catalog();
-    assert!(catalog.get_table("nonexistent").is_none());
+    assert!(catalog.get_table("nonexistent").is_none(), "catalog lookup for unknown table should return None, not panic");
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_catalog_drop_table() {
     let mut catalog = setup_catalog();
     assert!(catalog.get_table("users").is_some());
     catalog.drop_table("users").unwrap();
-    assert!(catalog.get_table("users").is_none());
+    assert!(catalog.get_table("users").is_none(), "dropped table should no longer be visible in the catalog");
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_catalog_duplicate_create() {
         name: "users".to_string(),
         columns: vec![],
     });
-    assert!(result.is_err());
+    assert!(result.is_err(), "catalog should reject duplicate table creation to maintain naming uniqueness");
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn test_bind_select_star() {
     let stmt = Parser::parse_sql("SELECT * FROM users").unwrap();
     let plan = binder.bind(&stmt).unwrap();
     let schema = plan.schema();
-    assert_eq!(schema.column_count(), 3); // id, name, age
+    assert_eq!(schema.column_count(), 3, "SELECT * should expand to all columns from the table schema");
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn test_bind_unknown_table() {
     let binder = Binder::new(&catalog);
     let stmt = Parser::parse_sql("SELECT * FROM nonexistent").unwrap();
     let result = binder.bind(&stmt);
-    assert!(result.is_err());
+    assert!(result.is_err(), "binder should reject references to tables not in the catalog");
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_bind_unknown_column() {
     let binder = Binder::new(&catalog);
     let stmt = Parser::parse_sql("SELECT nonexistent FROM users").unwrap();
     let result = binder.bind(&stmt);
-    assert!(result.is_err());
+    assert!(result.is_err(), "binder should reject references to columns not in the table schema");
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn test_bind_scope_resolution() {
 
     // Ambiguous unqualified reference should error
     let result = scope.resolve(None, "id");
-    assert!(result.is_err());
+    assert!(result.is_err(), "ambiguous column reference must error: 'id' exists in both 'users' and 'orders'");
 
     // Unambiguous unqualified reference
     let result = scope.resolve(None, "name");

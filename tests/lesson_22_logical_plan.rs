@@ -11,9 +11,9 @@ fn test_schema() {
         ("name".to_string(), LogicalType::Varchar),
     ]);
     assert_eq!(schema.column_count(), 2);
-    assert_eq!(schema.find_column("id"), Some(0));
+    assert_eq!(schema.find_column("id"), Some(0), "find_column should return the index of a known column");
     assert_eq!(schema.find_column("name"), Some(1));
-    assert_eq!(schema.find_column("age"), None);
+    assert_eq!(schema.find_column("age"), None, "find_column should return None for columns not in the schema");
     assert_eq!(schema.types(), vec![LogicalType::Int32, LogicalType::Varchar]);
 }
 
@@ -22,7 +22,7 @@ fn test_schema_merge() {
     let s1 = Schema::new(vec![("a".to_string(), LogicalType::Int32)]);
     let s2 = Schema::new(vec![("b".to_string(), LogicalType::Float64)]);
     let merged = s1.merge(&s2);
-    assert_eq!(merged.column_count(), 2);
+    assert_eq!(merged.column_count(), 2, "schema merge concatenates columns from both schemas, as needed for joins");
     assert_eq!(merged.columns[0].0, "a");
     assert_eq!(merged.columns[1].0, "b");
 }
@@ -39,7 +39,7 @@ fn test_scan_plan_schema() {
         projection: None,
     };
     let output = plan.schema();
-    assert_eq!(output.column_count(), 2);
+    assert_eq!(output.column_count(), 2, "scan without projection exposes all table columns");
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_scan_with_projection() {
         projection: Some(vec![0, 2]),
     };
     let output = plan.schema();
-    assert_eq!(output.column_count(), 2);
+    assert_eq!(output.column_count(), 2, "projection pushdown in scan reduces columns read from storage");
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn test_filter_plan_schema() {
         input: Box::new(inner),
     };
     let output = plan.schema();
-    assert_eq!(output.column_count(), 1);
+    assert_eq!(output.column_count(), 1, "filter does not change the schema; it only removes rows, not columns");
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn test_join_plan_schema() {
         condition: None,
     };
     let output = plan.schema();
-    assert_eq!(output.column_count(), 2);
+    assert_eq!(output.column_count(), 2, "join schema is the concatenation of left and right schemas");
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn test_pretty_print() {
     };
     let output = plan.pretty_print();
     assert!(!output.is_empty());
-    assert!(output.contains("Filter") || output.contains("filter"));
+    assert!(output.contains("Filter") || output.contains("filter"), "pretty print should show operator names for debugging query plans");
     assert!(output.contains("Scan") || output.contains("scan") || output.contains("users"));
 }
 

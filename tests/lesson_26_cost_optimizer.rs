@@ -34,7 +34,7 @@ fn test_column_statistics_selectivity() {
 
     // Equality selectivity: ~1/distinct_count
     let eq_sel = stats.equality_selectivity();
-    assert!(eq_sel > 0.0 && eq_sel <= 0.02, "eq_sel={}", eq_sel);
+    assert!(eq_sel > 0.0 && eq_sel <= 0.02, "equality selectivity should be ~1/distinct_count = 1/100 = 0.01, got {}", eq_sel);
 
     // Range selectivity: (value - min) / (max - min)
     let gt_sel = stats.selectivity(">", 500.0);
@@ -56,7 +56,7 @@ fn test_cardinality_estimation_scan() {
     };
 
     let est = CardinalityEstimator::estimate(&plan, &stats_map);
-    assert_eq!(est, 1000);
+    assert_eq!(est, 1000, "scan cardinality should equal the table row count with no filters applied");
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn test_cost_model_scan() {
 #[test]
 fn test_cost_model_hash_join() {
     let cost = CostModel::hash_join_cost(1000, 10000);
-    assert!(cost.total() > 0.0);
+    assert!(cost.total() > 0.0, "hash join has non-zero cost from building the hash table on the smaller side plus probing with the larger side");
     // Hash join cost should scale with build + probe
 }
 
@@ -110,7 +110,7 @@ fn test_cost_model_sort() {
     assert!(cost.total() > 0.0);
     // Sort is O(n log n)
     let cost2 = CostModel::sort_cost(10000);
-    assert!(cost2.total() > cost.total());
+    assert!(cost2.total() > cost.total(), "sorting 10x more rows should cost more because sort is O(n log n)");
 }
 
 #[test]
@@ -118,15 +118,15 @@ fn test_cost_addition() {
     let c1 = Cost { cpu: 10.0, io: 5.0, network: 1.0 };
     let c2 = Cost { cpu: 20.0, io: 3.0, network: 2.0 };
     let sum = c1.add(&c2);
-    assert_eq!(sum.cpu, 30.0);
-    assert_eq!(sum.io, 8.0);
-    assert_eq!(sum.network, 3.0);
+    assert_eq!(sum.cpu, 30.0, "CPU costs should be additive across operators in a pipeline");
+    assert_eq!(sum.io, 8.0, "IO costs should be additive across operators in a pipeline");
+    assert_eq!(sum.network, 3.0, "network costs should be additive across operators in a pipeline");
 }
 
 #[test]
 fn test_cost_zero() {
     let z = Cost::zero();
-    assert_eq!(z.total(), 0.0);
+    assert_eq!(z.total(), 0.0, "Cost::zero() is the identity element for cost addition");
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn test_relation_set_subsets() {
     let set = RelationSet { bits: 0b111 }; // {0, 1, 2}
     let subsets = set.subsets();
     // Non-empty subsets of {0,1,2}: 7 total
-    assert_eq!(subsets.len(), 7);
+    assert_eq!(subsets.len(), 7, "a 3-element set should have exactly 2^3 - 1 = 7 non-empty subsets for DPccp enumeration");
 }
 
 #[test]

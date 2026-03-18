@@ -6,8 +6,8 @@ use quackdb::chunk::{DataChunk, ChunkCollection};
 #[test]
 fn test_chunk_creation() {
     let chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar]);
-    assert_eq!(chunk.column_count(), 2);
-    assert_eq!(chunk.count(), 0);
+    assert_eq!(chunk.column_count(), 2, "chunk must have one column per type in the schema");
+    assert_eq!(chunk.count(), 0, "a new chunk starts with zero rows");
 }
 
 #[test]
@@ -24,11 +24,11 @@ fn test_chunk_append_row() {
     chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Int64(200)]);
     chunk.append_row(&[ScalarValue::Int32(3), ScalarValue::Int64(300)]);
 
-    assert_eq!(chunk.count(), 3);
+    assert_eq!(chunk.count(), 3, "append_row should increment the chunk row count");
     assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(1));
     assert_eq!(chunk.column(0).get_value(1), ScalarValue::Int32(2));
     assert_eq!(chunk.column(0).get_value(2), ScalarValue::Int32(3));
-    assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int64(100));
+    assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int64(100), "column(1) accesses the second column vector independently");
     assert_eq!(chunk.column(1).get_value(1), ScalarValue::Int64(200));
     assert_eq!(chunk.column(1).get_value(2), ScalarValue::Int64(300));
 }
@@ -66,8 +66,8 @@ fn test_chunk_slice() {
     }
 
     let sliced = chunk.slice(2, 5);
-    assert_eq!(sliced.count(), 5);
-    assert_eq!(sliced.column(0).get_value(0), ScalarValue::Int32(2));
+    assert_eq!(sliced.count(), 5, "slice(offset=2, length=5) must produce exactly 5 rows");
+    assert_eq!(sliced.column(0).get_value(0), ScalarValue::Int32(2), "sliced chunk index 0 should map to original index 2");
     assert_eq!(sliced.column(0).get_value(1), ScalarValue::Int32(3));
     assert_eq!(sliced.column(0).get_value(4), ScalarValue::Int32(6));
 }
@@ -97,19 +97,19 @@ fn test_chunk_reset() {
     assert_eq!(chunk.count(), 2);
 
     chunk.reset();
-    assert_eq!(chunk.count(), 0);
+    assert_eq!(chunk.count(), 0, "reset must clear the row count to zero");
 
     // Can reuse after reset
     chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Float64(10.0)]);
-    assert_eq!(chunk.count(), 1);
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(10));
+    assert_eq!(chunk.count(), 1, "chunk must be reusable after reset");
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(10), "values appended after reset must overwrite old data");
 }
 
 #[test]
 fn test_chunk_types() {
     let chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64]);
     let types = chunk.types();
-    assert_eq!(types, vec![LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64]);
+    assert_eq!(types, vec![LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64], "types() must return the schema in column order");
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn test_chunk_display() {
     chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Varchar("world".into())]);
 
     let display = format!("{}", chunk);
-    assert!(!display.is_empty());
+    assert!(!display.is_empty(), "Display impl must produce a non-empty string for a populated chunk");
     // Should contain at least the values
     assert!(display.contains("1") || display.contains("hello"));
 }
@@ -139,8 +139,8 @@ fn test_chunk_collection() {
     collection.append(chunk1);
     collection.append(chunk2);
 
-    assert_eq!(collection.chunk_count(), 2);
-    assert_eq!(collection.total_count(), 3);
+    assert_eq!(collection.chunk_count(), 2, "collection holds each appended chunk separately");
+    assert_eq!(collection.total_count(), 3, "total_count must sum rows across all chunks");
     assert_eq!(collection.types(), &types);
 }
 
@@ -149,7 +149,7 @@ fn test_chunk_collection_empty() {
     let types = vec![LogicalType::Int32];
     let collection = ChunkCollection::new(types);
     assert_eq!(collection.chunk_count(), 0);
-    assert_eq!(collection.total_count(), 0);
+    assert_eq!(collection.total_count(), 0, "empty collection must report zero total rows");
 }
 
 #[test]
@@ -161,6 +161,6 @@ fn test_chunk_column_access() {
     let col = chunk.column_mut(0);
     col.set_value(0, ScalarValue::Int32(99));
 
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(99));
-    assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int64(20));
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(99), "mutable column access must persist the updated value");
+    assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int64(20), "mutating column 0 must not affect column 1");
 }

@@ -12,7 +12,7 @@ fn test_begin_commit() {
 
     let txn2 = table.begin_transaction();
     let rows = table.scan(txn2);
-    assert_eq!(rows.len(), 1);
+    assert_eq!(rows.len(), 1, "committed insert should be visible to subsequent transactions");
     assert_eq!(rows[0][0], ScalarValue::Int32(1));
 }
 
@@ -35,7 +35,7 @@ fn test_snapshot_isolation() {
 
     // txn2 should only see txn1's row (snapshot isolation)
     let rows = table.scan(txn2);
-    assert_eq!(rows.len(), 1);
+    assert_eq!(rows.len(), 1, "snapshot isolation means txn2 cannot see txn3's insert that committed after txn2 began");
     assert_eq!(rows[0][0], ScalarValue::Int32(1));
 }
 
@@ -49,7 +49,7 @@ fn test_abort_not_visible() {
 
     let txn2 = table.begin_transaction();
     let rows = table.scan(txn2);
-    assert_eq!(rows.len(), 0); // aborted row not visible
+    assert_eq!(rows.len(), 0, "aborted transactions must leave no visible side effects -- this is the atomicity guarantee");
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn test_read_own_writes() {
 
     // Should see own uncommitted write
     let rows = table.scan(txn);
-    assert_eq!(rows.len(), 1);
+    assert_eq!(rows.len(), 1, "a transaction must always see its own uncommitted writes (read-your-own-writes guarantee)");
     assert_eq!(rows[0][0], ScalarValue::Int32(42));
 }
 
@@ -79,7 +79,7 @@ fn test_delete() {
 
     let txn3 = table.begin_transaction();
     let rows = table.scan(txn3);
-    assert_eq!(rows.len(), 0); // deleted
+    assert_eq!(rows.len(), 0, "a committed delete should make the row invisible to all future transactions");
 }
 
 #[test]
@@ -96,12 +96,12 @@ fn test_delete_not_visible_before_commit() {
     table.delete(txn2, row_id).unwrap();
     // txn3 started before txn2 committed delete
     let rows = table.scan(txn3);
-    assert_eq!(rows.len(), 1); // still visible to txn3
+    assert_eq!(rows.len(), 1, "uncommitted deletes must not be visible to concurrent transactions");
 
     table.commit(txn2).unwrap();
     // txn3's snapshot shouldn't change
     let rows = table.scan(txn3);
-    assert_eq!(rows.len(), 1);
+    assert_eq!(rows.len(), 1, "txn3's snapshot was taken before the delete committed, so it must still see the row");
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn test_concurrent_insert() {
 
     let txn3 = table.begin_transaction();
     let rows = table.scan(txn3);
-    assert_eq!(rows.len(), 2);
+    assert_eq!(rows.len(), 2, "concurrent inserts to different rows should both be visible after both transactions commit");
 }
 
 #[test]
@@ -172,5 +172,5 @@ fn test_versioned_row_visibility() {
     assert!(row.is_visible(2, &[]));
 
     // Not visible if created_by is still active
-    assert!(!row.is_visible(2, &[1]));
+    assert!(!row.is_visible(2, &[1]), "rows created by an active (uncommitted) transaction must be invisible to other transactions");
 }

@@ -5,9 +5,9 @@ use quackdb::storage::page::{Page, PageBuilder, PageHeader, PageType, DEFAULT_PA
 #[test]
 fn test_page_creation() {
     let page = Page::new(0, PageType::Data, DEFAULT_PAGE_SIZE);
-    assert_eq!(page.header.page_id, 0);
+    assert_eq!(page.header.page_id, 0, "page ID assigned at creation must be stored in the header");
     assert_eq!(page.header.page_type, PageType::Data);
-    assert_eq!(page.page_size(), DEFAULT_PAGE_SIZE);
+    assert_eq!(page.page_size(), DEFAULT_PAGE_SIZE, "page size defaults to the system page size constant");
 }
 
 #[test]
@@ -16,14 +16,14 @@ fn test_page_write_read() {
     let data = b"hello world";
     page.write_data(0, data).unwrap();
     let read_back = page.read_data(0, data.len()).unwrap();
-    assert_eq!(read_back, data);
+    assert_eq!(read_back, data, "page must faithfully store and return written bytes");
 }
 
 #[test]
 fn test_page_free_space() {
     let mut page = Page::new_default(0, PageType::Data);
     let initial_free = page.free_space();
-    assert!(initial_free > 0);
+    assert!(initial_free > 0, "a fresh page must have usable free space after the header");
 
     page.write_data(0, &[0u8; 100]).unwrap();
     // Free space tracking depends on implementation
@@ -70,11 +70,11 @@ fn test_page_header_roundtrip() {
         num_records: 10,
     };
     let bytes = header.to_bytes();
-    assert_eq!(bytes.len(), PageHeader::SIZE);
+    assert_eq!(bytes.len(), PageHeader::SIZE, "header serialization must produce a fixed-size byte array");
     let restored = PageHeader::from_bytes(&bytes).unwrap();
     assert_eq!(restored.page_type, PageType::Meta);
     assert_eq!(restored.page_id, 123);
-    assert_eq!(restored.checksum, 0xDEADBEEF);
+    assert_eq!(restored.checksum, 0xDEADBEEF, "checksum must be preserved exactly through serialization");
     assert_eq!(restored.free_space, 4096);
     assert_eq!(restored.num_records, 10);
 }
@@ -84,8 +84,8 @@ fn test_page_builder() {
     let mut builder = PageBuilder::new(0, PageType::Data, DEFAULT_PAGE_SIZE);
     let offset1 = builder.append(b"first record").unwrap();
     let offset2 = builder.append(b"second record").unwrap();
-    assert!(offset2 > offset1);
-    assert!(builder.remaining() < DEFAULT_PAGE_SIZE);
+    assert!(offset2 > offset1, "each append must advance the write offset");
+    assert!(builder.remaining() < DEFAULT_PAGE_SIZE, "remaining space must decrease after appending records");
 
     let page = builder.finish();
     assert!(page.verify_checksum());
@@ -97,7 +97,7 @@ fn test_page_builder_overflow() {
     builder.append(&[0u8; 30]).unwrap();
     // This should fail — not enough space
     let result = builder.append(&[0u8; 40]);
-    assert!(result.is_err());
+    assert!(result.is_err(), "writing beyond page capacity must return an error, not corrupt data");
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn test_page_type_from_u8() {
     assert_eq!(PageType::from_u8(2), Some(PageType::Index));
     assert_eq!(PageType::from_u8(3), Some(PageType::Overflow));
     assert_eq!(PageType::from_u8(4), Some(PageType::Meta));
-    assert_eq!(PageType::from_u8(0), None);
+    assert_eq!(PageType::from_u8(0), None, "invalid type discriminants must return None to catch corruption");
     assert_eq!(PageType::from_u8(255), None);
 }
 

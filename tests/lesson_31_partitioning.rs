@@ -24,10 +24,10 @@ fn test_hash_partition() {
     });
 
     let parts = partitioner.partition(&data);
-    assert_eq!(parts.len(), 4);
+    assert_eq!(parts.len(), 4, "hash partitioner should produce exactly num_partitions output chunks");
 
     let total: usize = parts.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 100);
+    assert_eq!(total, 100, "partitioning must not lose or duplicate any rows");
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn test_hash_partition_deterministic() {
     let parts2 = partitioner.partition(&data);
 
     for (p1, p2) in parts1.iter().zip(parts2.iter()) {
-        assert_eq!(p1.count(), p2.count());
+        assert_eq!(p1.count(), p2.count(), "hash partitioning must be deterministic -- same input should always land in the same partition");
     }
 }
 
@@ -58,7 +58,7 @@ fn test_round_robin_partition() {
     assert_eq!(total, 10);
 
     // Round robin should distribute evenly
-    assert!(parts[0].count() >= 3);
+    assert!(parts[0].count() >= 3, "round-robin should distribute rows evenly: 10 rows / 3 partitions = 3 or 4 per partition");
     assert!(parts[0].count() <= 4);
 }
 
@@ -71,7 +71,7 @@ fn test_range_partition() {
     });
 
     let parts = partitioner.partition(&data);
-    assert_eq!(parts.len(), 4); // 3 boundaries = 4 partitions
+    assert_eq!(parts.len(), 4, "N range boundaries create N+1 partitions: (-inf,25), [25,50), [50,75), [75,+inf)");
 
     let total: usize = parts.iter().map(|c| c.count()).sum();
     assert_eq!(total, 100);
@@ -122,7 +122,7 @@ fn test_partition_pruning_hash() {
         &ScalarValue::Int32(42),
     );
     // Hash pruning: should return exactly 1 partition
-    assert_eq!(pruned.len(), 1);
+    assert_eq!(pruned.len(), 1, "hash partition pruning should narrow the search to exactly one partition for an equality predicate");
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn test_partition_pruning_range() {
     );
     // Value 30 falls in partition 1 (between 25 and 50)
     assert_eq!(pruned.len(), 1);
-    assert_eq!(pruned[0], 1);
+    assert_eq!(pruned[0], 1, "value 30 falls in range [25,50) which is partition index 1");
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn test_repartition() {
 
     let all = table.scan_all();
     let total: usize = all.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 100);
+    assert_eq!(total, 100, "repartitioning must preserve all data even when changing the number of partitions");
 }
 
 #[test]

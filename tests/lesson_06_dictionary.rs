@@ -11,8 +11,8 @@ fn test_dictionary_basic() {
     let c3 = dict.insert("hello".to_string());
 
     assert_eq!(c1, c3, "Same value should get same code");
-    assert_ne!(c1, c2);
-    assert_eq!(dict.cardinality(), 2);
+    assert_ne!(c1, c2, "distinct values must receive different codes");
+    assert_eq!(dict.cardinality(), 2, "cardinality tracks the number of unique entries");
 }
 
 #[test]
@@ -22,15 +22,15 @@ fn test_dictionary_lookup() {
     dict.insert(20);
     dict.insert(30);
 
-    assert_eq!(dict.get_code(&10), Some(0));
+    assert_eq!(dict.get_code(&10), Some(0), "codes are assigned in insertion order starting at 0");
     assert_eq!(dict.get_code(&20), Some(1));
     assert_eq!(dict.get_code(&30), Some(2));
-    assert_eq!(dict.get_code(&40), None);
+    assert_eq!(dict.get_code(&40), None, "absent values must return None, not a sentinel");
 
-    assert_eq!(dict.get_value(0), Some(&10));
+    assert_eq!(dict.get_value(0), Some(&10), "reverse lookup: code -> value must invert the mapping");
     assert_eq!(dict.get_value(1), Some(&20));
     assert_eq!(dict.get_value(2), Some(&30));
-    assert_eq!(dict.get_value(3), None);
+    assert_eq!(dict.get_value(3), None, "out-of-range code must return None");
 }
 
 #[test]
@@ -44,10 +44,10 @@ fn test_dictionary_encode_strings() {
     ];
     let encoded = dictionary::encode(&data);
 
-    assert_eq!(encoded.dictionary.cardinality(), 3);
-    assert_eq!(encoded.codes.len(), 5);
+    assert_eq!(encoded.dictionary.cardinality(), 3, "three distinct fruits yield cardinality 3");
+    assert_eq!(encoded.codes.len(), 5, "one code per input element regardless of duplicates");
     // Same values should have same codes
-    assert_eq!(encoded.codes[0], encoded.codes[2]); // apple
+    assert_eq!(encoded.codes[0], encoded.codes[2], "duplicate 'apple' entries must share the same code");
     assert_eq!(encoded.codes[1], encoded.codes[4]); // banana
 }
 
@@ -87,14 +87,14 @@ fn test_dictionary_all_nulls() {
 fn test_dictionary_high_cardinality() {
     let data: Vec<i32> = (0..1000).collect();
     // With unique values, dictionary encoding is not beneficial
-    assert!(!dictionary::should_dictionary_encode(&data, 0.5));
+    assert!(!dictionary::should_dictionary_encode(&data, 0.5), "dictionary encoding hurts when cardinality equals row count");
 }
 
 #[test]
 fn test_dictionary_low_cardinality() {
     let data: Vec<i32> = (0..1000).map(|i| i % 5).collect();
     // 5 distinct values out of 1000 — very low cardinality
-    assert!(dictionary::should_dictionary_encode(&data, 0.1));
+    assert!(dictionary::should_dictionary_encode(&data, 0.1), "5 distinct values in 1000 rows is ideal for dictionary encoding");
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn test_dictionary_compression_ratio() {
 fn test_dictionary_empty() {
     let data: Vec<Option<i32>> = vec![];
     let encoded = dictionary::encode(&data);
-    assert_eq!(encoded.dictionary.cardinality(), 0);
+    assert_eq!(encoded.dictionary.cardinality(), 0, "empty input produces an empty dictionary");
     assert_eq!(encoded.codes.len(), 0);
     let decoded = dictionary::decode(&encoded);
     assert!(decoded.is_empty());

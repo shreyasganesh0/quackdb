@@ -33,7 +33,7 @@ fn test_row_number() {
     let func = create_window_function(WindowFunctionType::RowNumber, None);
     let order: Vec<usize> = (0..5).collect();
     let results = func.evaluate(&chunk, &order, &window.frame);
-    assert_eq!(results.len(), 5);
+    assert_eq!(results.len(), 5, "ROW_NUMBER should produce exactly one value per input row");
     // Row numbers should be 1, 2, 3, 4, 5
     for (i, val) in results.iter().enumerate() {
         if let ScalarValue::Int64(n) = val {
@@ -55,7 +55,7 @@ fn test_rank() {
     let frame = WindowFrame::default_frame();
     let results = func.evaluate(&chunk, &order, &frame);
     // With ties: 1, 1, 3, 4
-    assert_eq!(results.len(), 4);
+    assert_eq!(results.len(), 4, "RANK produces one value per row; ties get the same rank but the next rank skips ahead");
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_dense_rank() {
     let frame = WindowFrame::default_frame();
     let results = func.evaluate(&chunk, &order, &frame);
     // Dense rank: 1, 1, 2, 3
-    assert_eq!(results.len(), 4);
+    assert_eq!(results.len(), 4, "DENSE_RANK never skips ranks after ties, unlike RANK which leaves gaps");
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn test_running_sum() {
     };
     let results = func.evaluate(&chunk, &order, &frame);
     // Running sum: 10, 30, 60
-    assert_eq!(results.len(), 3);
+    assert_eq!(results.len(), 3, "UNBOUNDED PRECEDING to CURRENT ROW frame computes a running sum over the ordered partition");
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn test_window_operator_pipeline() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 5);
+    assert_eq!(total, 5, "window operator in a pipeline should preserve all input rows while appending the computed window column");
 }
 
 #[test]
@@ -132,8 +132,8 @@ fn test_lag_lead() {
 
     let lag_results = lag.evaluate(&chunk, &order, &frame);
     let lead_results = lead.evaluate(&chunk, &order, &frame);
-    assert_eq!(lag_results.len(), 3);
-    assert_eq!(lead_results.len(), 3);
+    assert_eq!(lag_results.len(), 3, "LAG should return one value per row, using NULL or a default for the first row");
+    assert_eq!(lead_results.len(), 3, "LEAD should return one value per row, using NULL or a default for the last row");
 }
 
 #[test]

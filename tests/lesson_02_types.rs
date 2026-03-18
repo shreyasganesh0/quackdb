@@ -29,8 +29,8 @@ fn test_byte_widths() {
     assert_eq!(LogicalType::Float64.byte_width(), Some(8));
     assert_eq!(LogicalType::Date.byte_width(), Some(4));
     assert_eq!(LogicalType::Timestamp.byte_width(), Some(8));
-    assert_eq!(LogicalType::Varchar.byte_width(), None);
-    assert_eq!(LogicalType::Blob.byte_width(), None);
+    assert_eq!(LogicalType::Varchar.byte_width(), None, "variable-length types must return None for byte_width");
+    assert_eq!(LogicalType::Blob.byte_width(), None, "variable-length types must return None for byte_width");
 }
 
 #[test]
@@ -38,12 +38,12 @@ fn test_type_categories() {
     assert!(LogicalType::Int32.is_numeric());
     assert!(LogicalType::Float64.is_numeric());
     assert!(LogicalType::UInt16.is_numeric());
-    assert!(!LogicalType::Varchar.is_numeric());
-    assert!(!LogicalType::Boolean.is_numeric());
+    assert!(!LogicalType::Varchar.is_numeric(), "Varchar is not a numeric type");
+    assert!(!LogicalType::Boolean.is_numeric(), "Boolean is not numeric despite being stored as a single byte");
 
     assert!(LogicalType::Int32.is_integer());
     assert!(LogicalType::UInt64.is_integer());
-    assert!(!LogicalType::Float32.is_integer());
+    assert!(!LogicalType::Float32.is_integer(), "floats must not be classified as integers");
 
     assert!(LogicalType::Float32.is_float());
     assert!(LogicalType::Float64.is_float());
@@ -57,14 +57,14 @@ fn test_scalar_value_types() {
     assert_eq!(ScalarValue::Int64(100).logical_type(), LogicalType::Int64);
     assert_eq!(ScalarValue::Float64(3.14).logical_type(), LogicalType::Float64);
     assert_eq!(ScalarValue::Varchar("hello".into()).logical_type(), LogicalType::Varchar);
-    assert_eq!(ScalarValue::Null(LogicalType::Int32).logical_type(), LogicalType::Int32);
+    assert_eq!(ScalarValue::Null(LogicalType::Int32).logical_type(), LogicalType::Int32, "NULL values must carry their logical type for schema consistency");
 }
 
 #[test]
 fn test_scalar_value_is_null() {
     assert!(ScalarValue::Null(LogicalType::Int32).is_null());
-    assert!(!ScalarValue::Int32(0).is_null());
-    assert!(!ScalarValue::Boolean(false).is_null());
+    assert!(!ScalarValue::Int32(0).is_null(), "zero is a valid value, not NULL — NULL represents missing data");
+    assert!(!ScalarValue::Boolean(false).is_null(), "false is a valid value, not NULL");
 }
 
 #[test]
@@ -93,18 +93,18 @@ fn test_scalar_varchar_roundtrip() {
     let val = ScalarValue::Varchar("hello world".into());
     let bytes = val.to_bytes();
     let decoded = ScalarValue::from_bytes(&bytes, &LogicalType::Varchar).unwrap();
-    assert_eq!(decoded, val);
+    assert_eq!(decoded, val, "variable-length types must survive serialization roundtrip");
 }
 
 #[test]
 fn test_type_coercion() {
     // Int32 + Int64 -> Int64
     let result = LogicalType::coerce(&LogicalType::Int32, &LogicalType::Int64);
-    assert_eq!(result, Some(LogicalType::Int64));
+    assert_eq!(result, Some(LogicalType::Int64), "coercion must widen to the larger integer type");
 
     // Int32 + Float64 -> Float64
     let result = LogicalType::coerce(&LogicalType::Int32, &LogicalType::Float64);
-    assert_eq!(result, Some(LogicalType::Float64));
+    assert_eq!(result, Some(LogicalType::Float64), "integer-float coercion must promote to float");
 
     // Float32 + Float64 -> Float64
     let result = LogicalType::coerce(&LogicalType::Float32, &LogicalType::Float64);
@@ -116,33 +116,33 @@ fn test_type_coercion() {
 
     // Incompatible types
     let result = LogicalType::coerce(&LogicalType::Boolean, &LogicalType::Varchar);
-    assert_eq!(result, None);
+    assert_eq!(result, None, "incompatible types must return None rather than silently coerce");
 }
 
 #[test]
 fn test_can_cast() {
     assert!(LogicalType::can_cast(&LogicalType::Int32, &LogicalType::Int64));
     assert!(LogicalType::can_cast(&LogicalType::Int32, &LogicalType::Float64));
-    assert!(LogicalType::can_cast(&LogicalType::Int64, &LogicalType::Varchar));
-    assert!(LogicalType::can_cast(&LogicalType::Float64, &LogicalType::Varchar));
+    assert!(LogicalType::can_cast(&LogicalType::Int64, &LogicalType::Varchar), "any numeric type should be castable to string representation");
+    assert!(LogicalType::can_cast(&LogicalType::Float64, &LogicalType::Varchar), "any numeric type should be castable to string representation");
 }
 
 #[test]
 fn test_scalar_cast() {
     let val = ScalarValue::Int32(42);
     let casted = val.cast_to(&LogicalType::Int64).unwrap();
-    assert_eq!(casted, ScalarValue::Int64(42));
+    assert_eq!(casted, ScalarValue::Int64(42), "widening cast must preserve the numeric value");
 
     let val = ScalarValue::Int32(42);
     let casted = val.cast_to(&LogicalType::Float64).unwrap();
-    assert_eq!(casted, ScalarValue::Float64(42.0));
+    assert_eq!(casted, ScalarValue::Float64(42.0), "int-to-float cast must preserve the numeric value");
 }
 
 #[test]
 fn test_decimal_type() {
     let decimal = LogicalType::Decimal { precision: 10, scale: 2 };
-    assert!(decimal.is_numeric());
-    assert!(decimal.byte_width().is_some());
+    assert!(decimal.is_numeric(), "Decimal is a numeric type despite having precision/scale metadata");
+    assert!(decimal.byte_width().is_some(), "Decimal has a fixed in-memory width for columnar storage");
 }
 
 #[test]

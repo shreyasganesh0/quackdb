@@ -35,7 +35,7 @@ fn test_predicate_pushdown_through_projection() {
 
     // Filter should be pushed below projection
     let pp = optimized.pretty_print();
-    assert!(pp.contains("Projection") || pp.contains("projection"));
+    assert!(pp.contains("Projection") || pp.contains("projection"), "predicate pushdown should move the filter below the projection, not eliminate it");
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn test_predicate_pushdown_through_join() {
 
     // Filter on 'x' should be pushed to the left side of the join
     let pp = optimized.pretty_print();
-    assert!(pp.contains("Join") || pp.contains("join"));
+    assert!(pp.contains("Join") || pp.contains("join"), "filter on column 'x' should be pushed to the left child since join preserves the join node");
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn test_constant_folding() {
     };
 
     let rule = ConstantFolding;
-    let optimized = rule.apply(filter).unwrap();
+    let optimized = rule.apply(filter).expect("constant folding should succeed on purely literal expressions like 2 + 3");
     // 2 + 3 should be folded to 5
 }
 
@@ -150,7 +150,7 @@ fn test_limit_pushdown() {
     };
 
     let rule = LimitPushdown;
-    let _optimized = rule.apply(limit).unwrap();
+    let _optimized = rule.apply(limit).expect("limit pushdown should convert LIMIT over SORT into a top-N operation");
 }
 
 #[test]
@@ -171,12 +171,12 @@ fn test_optimize_fixpoint() {
     };
 
     let rules = default_rules();
-    let optimized = optimize(plan, &rules, 10).unwrap();
+    let optimized = optimize(plan, &rules, 10).expect("fixpoint optimization should converge within 10 iterations without infinite loop");
     // Should reach a fixpoint without infinite loop
 }
 
 #[test]
 fn test_default_rules() {
     let rules = default_rules();
-    assert!(!rules.is_empty());
+    assert!(!rules.is_empty(), "default_rules() must provide at least one optimization rule for the optimizer to be useful");
 }

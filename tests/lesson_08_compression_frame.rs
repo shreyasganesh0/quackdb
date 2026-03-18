@@ -20,37 +20,37 @@ fn test_frame_serialize_roundtrip() {
 
     let bytes = frame.to_bytes();
     let restored = CompressionFrame::from_bytes(&bytes).unwrap();
-    assert_eq!(restored.header.algorithm, CompressionAlgorithm::Rle);
+    assert_eq!(restored.header.algorithm, CompressionAlgorithm::Rle, "algorithm tag must survive serialization for correct decoding");
     assert_eq!(restored.header.count, 100);
-    assert_eq!(restored.header.uncompressed_size, 800);
+    assert_eq!(restored.header.uncompressed_size, 800, "uncompressed size is needed for buffer allocation on read");
     assert_eq!(restored.header.compressed_size, 50);
-    assert_eq!(restored.data, vec![1, 2, 3, 4, 5]);
+    assert_eq!(restored.data, vec![1, 2, 3, 4, 5], "payload bytes must be identical after round-trip");
 }
 
 #[test]
 fn test_analyzer_sorted_data() {
     let data: Vec<i64> = (0..1000).collect();
     let stats = CompressionAnalyzer::analyze_i64(&data);
-    assert!(stats.is_sorted);
-    assert!(!stats.is_constant);
-    assert!(stats.distinct_ratio > 0.9);
+    assert!(stats.is_sorted, "0..1000 is monotonically increasing");
+    assert!(!stats.is_constant, "sorted is not the same as constant");
+    assert!(stats.distinct_ratio > 0.9, "all-unique values should have distinct_ratio near 1.0");
 }
 
 #[test]
 fn test_analyzer_constant_data() {
     let data = vec![42i64; 1000];
     let stats = CompressionAnalyzer::analyze_i64(&data);
-    assert!(stats.is_constant);
-    assert!(stats.is_sorted);
-    assert!(stats.distinct_ratio < 0.01);
+    assert!(stats.is_constant, "repeated single value is constant");
+    assert!(stats.is_sorted, "constant data is trivially sorted");
+    assert!(stats.distinct_ratio < 0.01, "one distinct value in 1000 rows gives a near-zero ratio");
 }
 
 #[test]
 fn test_analyzer_low_cardinality() {
     let data: Vec<i64> = (0..1000).map(|i| i % 5).collect();
     let stats = CompressionAnalyzer::analyze_i64(&data);
-    assert!(stats.distinct_ratio < 0.05);
-    assert!(!stats.is_sorted);
+    assert!(stats.distinct_ratio < 0.05, "5 distinct values in 1000 rows is low cardinality");
+    assert!(!stats.is_sorted, "cycling modulo pattern is not sorted");
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn test_pick_algorithm() {
         max_value: 42,
     };
     let algo = CompressionAnalyzer::pick_algorithm(&const_stats);
-    assert_eq!(algo, CompressionAlgorithm::Rle);
+    assert_eq!(algo, CompressionAlgorithm::Rle, "constant data collapses to one run, making RLE optimal");
 }
 
 #[test]
@@ -142,5 +142,5 @@ fn test_compress_decompress_all_algorithms() {
     let frame = auto_compress(&data);
     let decoded = decompress(&frame);
     assert_eq!(decoded, data);
-    assert_eq!(frame.header.count, 100);
+    assert_eq!(frame.header.count, 100, "frame header must record the logical row count for decoding");
 }

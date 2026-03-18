@@ -6,9 +6,9 @@ use quackdb::compression::rle;
 fn test_rle_all_same() {
     let data = vec![42i32; 1000];
     let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 1);
+    assert_eq!(encoded.runs.len(), 1, "all-same input should compress to a single run");
     assert_eq!(encoded.runs[0].value, 42);
-    assert_eq!(encoded.runs[0].count, 1000);
+    assert_eq!(encoded.runs[0].count, 1000, "the single run must capture the total element count");
     assert_eq!(encoded.total_count, 1000);
 
     let decoded = rle::decode(&encoded);
@@ -19,9 +19,9 @@ fn test_rle_all_same() {
 fn test_rle_alternating() {
     let data: Vec<i32> = (0..100).map(|i| i % 2).collect();
     let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 100);
+    assert_eq!(encoded.runs.len(), 100, "alternating values produce no consecutive duplicates, so every element is its own run");
     let decoded = rle::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_eq!(decoded, data, "RLE must be lossless even in the worst case");
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn test_rle_sorted() {
         }
     }
     let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 10);
+    assert_eq!(encoded.runs.len(), 10, "sorted data groups into one run per distinct value");
     let decoded = rle::decode(&encoded);
     assert_eq!(decoded, data);
 }
@@ -51,7 +51,7 @@ fn test_rle_single_element() {
 fn test_rle_empty() {
     let data: Vec<i32> = vec![];
     let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 0);
+    assert_eq!(encoded.runs.len(), 0, "empty input must produce zero runs");
     assert_eq!(encoded.total_count, 0);
     let decoded = rle::decode(&encoded);
     assert!(decoded.is_empty());
@@ -68,18 +68,18 @@ fn test_rle_random_access() {
     let encoded = rle::encode(&data);
 
     // Check random access at various positions
-    assert_eq!(rle::get_at_index(&encoded, 0), 0);
-    assert_eq!(rle::get_at_index(&encoded, 99), 0);
-    assert_eq!(rle::get_at_index(&encoded, 100), 1);
+    assert_eq!(rle::get_at_index(&encoded, 0), 0, "index 0 falls in the first run");
+    assert_eq!(rle::get_at_index(&encoded, 99), 0, "last element of the first run");
+    assert_eq!(rle::get_at_index(&encoded, 100), 1, "run boundary: index 100 starts a new run");
     assert_eq!(rle::get_at_index(&encoded, 250), 2);
-    assert_eq!(rle::get_at_index(&encoded, 499), 4);
+    assert_eq!(rle::get_at_index(&encoded, 499), 4, "last valid index should map to the final run");
 }
 
 #[test]
 fn test_rle_roundtrip_strings() {
     let data = vec!["hello", "hello", "hello", "world", "world", "foo"];
     let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 3);
+    assert_eq!(encoded.runs.len(), 3, "RLE should be generic over string-like types too");
     let decoded = rle::decode(&encoded);
     assert_eq!(decoded, data);
 }
@@ -96,7 +96,7 @@ fn test_rle_compression_ratio() {
 fn test_rle_bytes() {
     let data = vec![0xAA_u8; 500];
     let encoded = rle::encode_bytes(&data);
-    assert!(encoded.len() < data.len(), "Encoded should be smaller");
+    assert!(encoded.len() < data.len(), "byte-level RLE of constant data must shrink the payload");
     let decoded = rle::decode_bytes(&encoded);
     assert_eq!(decoded, data);
 }

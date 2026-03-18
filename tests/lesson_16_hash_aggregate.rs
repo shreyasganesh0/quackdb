@@ -33,7 +33,7 @@ fn test_aggregate_sum() {
 
     let results = ht.finalize().unwrap();
     let total_rows: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total_rows, 2); // 2 groups
+    assert_eq!(total_rows, 2, "hash aggregation should produce one output row per distinct group key");
 
     // Group 1: sum = 10+30+50 = 90
     // Group 2: sum = 20+40 = 60
@@ -49,7 +49,7 @@ fn test_aggregate_sum() {
         }
     }
     group_sums.sort_by_key(|&(g, _)| g);
-    assert_eq!(group_sums, vec![(1, 90), (2, 60)]);
+    assert_eq!(group_sums, vec![(1, 90), (2, 60)], "SUM should accumulate all values within each group");
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn test_aggregate_count() {
         }
     }
     group_counts.sort_by_key(|&(g, _)| g);
-    assert_eq!(group_counts, vec![(1, 3), (2, 2)]);
+    assert_eq!(group_counts, vec![(1, 3), (2, 2)], "COUNT should tally the number of rows per group");
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_aggregate_min_max() {
         }
     }
     group_minmax.sort_by_key(|&(g, _, _)| g);
-    assert_eq!(group_minmax, vec![(1, 10, 50), (2, 20, 40)]);
+    assert_eq!(group_minmax, vec![(1, 10, 50), (2, 20, 40)], "MIN/MAX should track extreme values independently within each group");
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn test_aggregate_global() {
     ht.add_chunk(&[], &[0, 0], &chunk).unwrap();
 
     let results = ht.finalize().unwrap();
-    assert_eq!(ht.group_count(), 1); // one global group
+    assert_eq!(ht.group_count(), 1, "global aggregation (no GROUP BY) produces exactly one group for the entire input");
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn test_aggregate_empty() {
 
     let results = ht.finalize().unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 0);
+    assert_eq!(total, 0, "aggregating empty input should produce no groups");
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn test_aggregate_hash_table_resize() {
     );
     ht.add_chunk(&[0], &[1], &chunk).unwrap();
 
-    assert_eq!(ht.group_count(), 1000);
+    assert_eq!(ht.group_count(), 1000, "hash table should resize dynamically to handle many distinct groups");
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn test_aggregate_with_nulls() {
     for c in &results {
         for i in 0..c.count() {
             if let ScalarValue::Int64(s) = c.column(1).get_value(i) {
-                assert_eq!(s, 40);
+                assert_eq!(s, 40, "SUM should skip NULL values: 10 + 30 = 40, not NULL");
             }
         }
     }

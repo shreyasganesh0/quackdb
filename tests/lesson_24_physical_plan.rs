@@ -19,7 +19,7 @@ fn test_e2e_select_all() {
     let db = setup_db();
     let results = db.execute_sql("SELECT * FROM users").unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 4);
+    assert_eq!(total, 4, "SELECT * should return all rows inserted into the table");
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn test_e2e_select_columns() {
     let results = db.execute_sql("SELECT name, age FROM users").unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
     assert_eq!(total, 4);
-    assert_eq!(results[0].column_count(), 2);
+    assert_eq!(results[0].column_count(), 2, "selecting specific columns should reduce output width to only those columns");
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn test_e2e_where() {
     let db = setup_db();
     let results = db.execute_sql("SELECT * FROM users WHERE age > 28").unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 2); // alice (30) and charlie (35)
+    assert_eq!(total, 2, "WHERE clause filters at execution time: only alice (30) and charlie (35) have age > 28");
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn test_e2e_order_by() {
     let db = setup_db();
     let results = db.execute_sql("SELECT name FROM users ORDER BY age ASC").unwrap();
     let chunk = &results[0];
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Varchar("bob".into()));
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Varchar("bob".into()), "ORDER BY ASC should place the youngest (bob, 25) first");
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn test_e2e_limit() {
     let db = setup_db();
     let results = db.execute_sql("SELECT * FROM users LIMIT 2").unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 2);
+    assert_eq!(total, 2, "LIMIT should cap the number of returned rows regardless of how many match");
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_e2e_group_by() {
 
     let results = db.execute_sql("SELECT product, SUM(amount) FROM sales GROUP BY product").unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 2);
+    assert_eq!(total, 2, "GROUP BY should collapse rows into one per distinct group key");
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn test_e2e_join() {
         "SELECT t1.val, t2.score FROM t1 INNER JOIN t2 ON t1.id = t2.id"
     ).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 1); // only id=1 matches
+    assert_eq!(total, 1, "end-to-end INNER JOIN: SQL text is parsed, bound, planned, and executed to produce correct join results");
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn test_e2e_create_and_insert() {
     db.execute_sql("INSERT INTO test VALUES (42)").unwrap();
 
     let results = db.execute_sql("SELECT x FROM test").unwrap();
-    assert_eq!(results[0].column(0).get_value(0), ScalarValue::Int32(42));
+    assert_eq!(results[0].column(0).get_value(0), ScalarValue::Int32(42), "CREATE TABLE + INSERT + SELECT round-trip should preserve inserted values");
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_e2e_expression_in_select() {
     let total: usize = results.iter().map(|c| c.count()).sum();
     assert_eq!(total, 1);
     // age=30, so age*2=60
-    assert_eq!(results[0].column(0).get_value(0), ScalarValue::Int32(60));
+    assert_eq!(results[0].column(0).get_value(0), ScalarValue::Int32(60), "expressions in SELECT list are evaluated during projection");
 }
 
 #[test]

@@ -26,8 +26,8 @@ fn test_sort_in_memory() {
     }];
 
     let sorted = ExternalSortOperator::sort_chunk(&chunk, &keys);
-    assert_eq!(sorted.count(), 5);
-    assert_eq!(sorted.column(0).get_value(0), ScalarValue::Int32(1));
+    assert_eq!(sorted.count(), 5, "sort must preserve all rows, not lose any");
+    assert_eq!(sorted.column(0).get_value(0), ScalarValue::Int32(1), "smallest value should appear first in ascending order");
     assert_eq!(sorted.column(0).get_value(1), ScalarValue::Int32(2));
     assert_eq!(sorted.column(0).get_value(2), ScalarValue::Int32(4));
     assert_eq!(sorted.column(0).get_value(3), ScalarValue::Int32(5));
@@ -44,7 +44,7 @@ fn test_sort_descending() {
     }];
 
     let sorted = ExternalSortOperator::sort_chunk(&chunk, &keys);
-    assert_eq!(sorted.column(0).get_value(0), ScalarValue::Int32(8));
+    assert_eq!(sorted.column(0).get_value(0), ScalarValue::Int32(8), "descending sort should place the largest value first");
     assert_eq!(sorted.column(0).get_value(4), ScalarValue::Int32(1));
 }
 
@@ -63,7 +63,7 @@ fn test_sort_multi_column() {
 
     let sorted = ExternalSortOperator::sort_chunk(&chunk, &keys);
     // Expected order: (1,10), (1,20), (1,30), (2,20)
-    assert_eq!(sorted.column(1).get_value(0), ScalarValue::Int32(10));
+    assert_eq!(sorted.column(1).get_value(0), ScalarValue::Int32(10), "multi-column sort breaks ties on the first key using the second key");
     assert_eq!(sorted.column(1).get_value(1), ScalarValue::Int32(20));
     assert_eq!(sorted.column(1).get_value(2), ScalarValue::Int32(30));
 }
@@ -85,7 +85,7 @@ fn test_sort_with_nulls() {
     assert_eq!(sorted.column(0).get_value(0), ScalarValue::Int32(1));
     assert_eq!(sorted.column(0).get_value(1), ScalarValue::Int32(3));
     // NULL should be last
-    assert!(!sorted.column(0).validity().is_valid(2));
+    assert!(!sorted.column(0).validity().is_valid(2), "NULLS LAST: null values sort after all non-null values");
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn test_k_way_merge() {
             }
         }
     }
-    assert_eq!(all_values, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    assert_eq!(all_values, vec![1, 2, 3, 4, 5, 6, 7, 8, 9], "k-way merge combines multiple sorted runs into one globally sorted sequence");
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn test_min_heap() {
     heap.push(4);
 
     assert_eq!(heap.len(), 5);
-    assert_eq!(heap.pop(), Some(1));
+    assert_eq!(heap.pop(), Some(1), "min-heap always extracts the smallest element first");
     assert_eq!(heap.pop(), Some(2));
     assert_eq!(heap.pop(), Some(4));
     assert_eq!(heap.pop(), Some(5));
@@ -194,7 +194,7 @@ fn test_top_n() {
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 3);
+    assert_eq!(total, 3, "Top-N should return exactly N rows, avoiding a full sort of all data");
 
     // Should be the 3 smallest: 1, 2, 4
     let chunk = &results[0];

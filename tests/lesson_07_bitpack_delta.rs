@@ -5,12 +5,12 @@ use quackdb::compression::delta;
 
 #[test]
 fn test_bits_required() {
-    assert_eq!(bitpack::bits_required(0), 0);
+    assert_eq!(bitpack::bits_required(0), 0, "zero needs no bits to represent");
     assert_eq!(bitpack::bits_required(1), 1);
-    assert_eq!(bitpack::bits_required(2), 2);
+    assert_eq!(bitpack::bits_required(2), 2, "value 2 requires 2 bits (binary 10)");
     assert_eq!(bitpack::bits_required(3), 2);
-    assert_eq!(bitpack::bits_required(255), 8);
-    assert_eq!(bitpack::bits_required(256), 9);
+    assert_eq!(bitpack::bits_required(255), 8, "max single-byte value needs exactly 8 bits");
+    assert_eq!(bitpack::bits_required(256), 9, "256 overflows 8 bits, needs 9");
     assert_eq!(bitpack::bits_required(u32::MAX as u64), 32);
 }
 
@@ -47,7 +47,7 @@ fn test_bitpack_compression() {
     let bit_width = 1;
     let packed = bitpack::pack(&values, bit_width);
     // 1000 values * 1 bit = 125 bytes vs 4000 bytes original
-    assert!(packed.len() < 4000);
+    assert!(packed.len() < 4000, "1-bit packing of 1000 values should use ~125 bytes, not 4000");
 }
 
 #[test]
@@ -69,10 +69,10 @@ fn test_bitpack_compression_ratio() {
 fn test_delta_encode_sequential() {
     let data: Vec<i64> = (100..110).collect();
     let encoded = delta::encode(&data);
-    assert_eq!(encoded.base, 100);
+    assert_eq!(encoded.base, 100, "base stores the first value of the sequence");
     // All deltas should be 1
     for d in &encoded.deltas {
-        assert_eq!(*d, 1);
+        assert_eq!(*d, 1, "sequential integers have a constant delta of 1");
     }
 }
 
@@ -96,8 +96,8 @@ fn test_delta_negative() {
 fn test_delta_single() {
     let data = vec![42i64];
     let encoded = delta::encode(&data);
-    assert_eq!(encoded.base, 42);
-    assert!(encoded.deltas.is_empty());
+    assert_eq!(encoded.base, 42, "single element is stored only as the base value");
+    assert!(encoded.deltas.is_empty(), "no deltas needed for a single-element sequence");
     let decoded = delta::decode(&encoded);
     assert_eq!(decoded, data);
 }
@@ -106,8 +106,8 @@ fn test_delta_single() {
 fn test_frame_of_reference() {
     let data: Vec<i64> = vec![1000, 1001, 1005, 1003, 1002];
     let (min_val, offsets) = delta::frame_of_reference_encode(&data);
-    assert_eq!(min_val, 1000);
-    assert_eq!(offsets, vec![0, 1, 5, 3, 2]);
+    assert_eq!(min_val, 1000, "frame-of-reference stores the minimum as the reference point");
+    assert_eq!(offsets, vec![0, 1, 5, 3, 2], "offsets are the difference from the minimum value");
 
     let decoded = delta::frame_of_reference_decode(min_val, &offsets);
     assert_eq!(decoded, data);
@@ -133,5 +133,5 @@ fn test_delta_empty() {
     let data: Vec<i64> = vec![];
     let encoded = delta::encode(&data);
     let decoded = delta::decode(&encoded);
-    assert!(decoded.is_empty());
+    assert!(decoded.is_empty(), "delta encoding of empty input must round-trip to empty");
 }

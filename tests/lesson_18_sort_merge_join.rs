@@ -43,7 +43,7 @@ fn test_merge_join_inner() {
 
     let results = join.merge().unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 2); // matches on 1 and 3
+    assert_eq!(total, 2, "sort-merge join finds matches by advancing two sorted cursors in lockstep");
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_merge_join_duplicates() {
 
     let results = join.merge().unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 4); // 2*2 = 4 for key=1
+    assert_eq!(total, 4, "duplicate keys produce a cross product: 2 left * 2 right = 4 output rows for key=1");
 }
 
 #[test]
@@ -86,8 +86,8 @@ fn test_row_comparator() {
         SortKey { column_index: 1, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast },
     ]);
 
-    assert_eq!(cmp.compare_within(&chunk, 0, 1), Ordering::Greater); // (1,200) > (1,100)
-    assert_eq!(cmp.compare_within(&chunk, 0, 2), Ordering::Less);    // (1,200) < (2,50)
+    assert_eq!(cmp.compare_within(&chunk, 0, 1), Ordering::Greater, "when first keys tie, comparator falls through to second key: 200 > 100");
+    assert_eq!(cmp.compare_within(&chunk, 0, 2), Ordering::Less, "first key takes priority: 1 < 2 regardless of second key values");
     assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Less);    // (1,100) < (1,200)
 }
 
@@ -101,7 +101,7 @@ fn test_row_comparator_descending() {
         SortKey { column_index: 0, direction: SortDirection::Descending, null_order: NullOrder::NullsLast },
     ]);
 
-    assert_eq!(cmp.compare_within(&chunk, 0, 1), Ordering::Greater); // DESC: 10 > 20 reversed
+    assert_eq!(cmp.compare_within(&chunk, 0, 1), Ordering::Greater, "descending order flips the comparison: 10 is 'greater' because it comes first in DESC");
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_row_comparator_nulls_first() {
         SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsFirst },
     ]);
 
-    assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Less); // NULL comes first
+    assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Less, "NULLS FIRST places NULL before all non-null values in sort order");
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn test_row_comparator_nulls_last() {
         SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast },
     ]);
 
-    assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Greater); // NULL comes last
+    assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Greater, "NULLS LAST places NULL after all non-null values in sort order");
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn test_key_normalizer() {
     let k2 = KeyNormalizer::normalize(&chunk, 1, &keys);
 
     // k1 should be < k2 (row 0 has smaller first key)
-    assert!(k1 < k2);
+    assert!(k1 < k2, "normalized keys enable byte-wise comparison that preserves sort order across types");
 }
 
 #[test]
@@ -167,5 +167,5 @@ fn test_merge_join_left_outer() {
 
     let results = join.merge().unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 3); // all 3 left rows, even id=5 with no match
+    assert_eq!(total, 3, "left outer merge join preserves all left rows, emitting NULLs for unmatched right columns");
 }

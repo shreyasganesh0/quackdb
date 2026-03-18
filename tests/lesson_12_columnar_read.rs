@@ -29,9 +29,9 @@ fn test_reader_open() {
     let buf = write_test_file(&[(1, 100), (2, 200), (3, 300)]);
     let reader = ColumnarFileReader::open(Cursor::new(&buf)).unwrap();
 
-    assert_eq!(reader.total_rows(), 3);
-    assert_eq!(reader.schema().len(), 2);
-    assert_eq!(reader.row_group_count(), 1);
+    assert_eq!(reader.total_rows(), 3, "reader must parse total_rows from the file footer");
+    assert_eq!(reader.schema().len(), 2, "schema with two columns must be recovered from footer metadata");
+    assert_eq!(reader.row_group_count(), 1, "single write_chunk call produces exactly one row group");
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_reader_scan_all() {
 
     let chunks = reader.scan(None, &[]).unwrap();
     let total_rows: usize = chunks.iter().map(|c| c.count()).sum();
-    assert_eq!(total_rows, 3);
+    assert_eq!(total_rows, 3, "full scan with no predicates must return all rows");
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_reader_projection() {
     let chunks = reader.scan(Some(&[0]), &[]).unwrap();
     assert!(!chunks.is_empty());
     let chunk = &chunks[0];
-    assert_eq!(chunk.column_count(), 1);
+    assert_eq!(chunk.column_count(), 1, "projection pushdown must return only the requested columns");
 }
 
 #[test]
@@ -102,9 +102,9 @@ fn test_reader_write_read_roundtrip() {
     let mut reader = ColumnarFileReader::open(Cursor::new(&buf)).unwrap();
 
     let chunks = reader.scan(None, &[]).unwrap();
-    assert_eq!(chunks.len(), 1);
+    assert_eq!(chunks.len(), 1, "one row group should produce one chunk");
     let chunk = &chunks[0];
-    assert_eq!(chunk.count(), 3);
+    assert_eq!(chunk.count(), 3, "round-tripped chunk must contain all original rows");
 
     for (i, &(expected_id, expected_val)) in original.iter().enumerate() {
         assert_eq!(chunk.column(0).get_value(i), ScalarValue::Int32(expected_id));
@@ -127,7 +127,7 @@ fn test_predicate_ops() {
         op: PredicateOp::Gt,
         value: ScalarValue::Int32(200),
     };
-    assert!(pred.can_prune(&stats, &LogicalType::Int32));
+    assert!(pred.can_prune(&stats, &LogicalType::Int32), "GT 200 must prune: max is 100, so no row can satisfy > 200");
 
     // GT 50 should NOT prune (max is 100, could have values > 50)
     let pred = ScanPredicate {
@@ -135,7 +135,7 @@ fn test_predicate_ops() {
         op: PredicateOp::Gt,
         value: ScalarValue::Int32(50),
     };
-    assert!(!pred.can_prune(&stats, &LogicalType::Int32));
+    assert!(!pred.can_prune(&stats, &LogicalType::Int32), "GT 50 must NOT prune: values up to 100 exist");
 
     // LT 5 should prune (min is 10)
     let pred = ScanPredicate {
@@ -143,7 +143,7 @@ fn test_predicate_ops() {
         op: PredicateOp::Lt,
         value: ScalarValue::Int32(5),
     };
-    assert!(pred.can_prune(&stats, &LogicalType::Int32));
+    assert!(pred.can_prune(&stats, &LogicalType::Int32), "LT 5 must prune: min is 10, so no row can be < 5");
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn test_reader_empty_file() {
     writer.finish().unwrap();
 
     let mut reader = ColumnarFileReader::open(Cursor::new(&buf)).unwrap();
-    assert_eq!(reader.total_rows(), 0);
+    assert_eq!(reader.total_rows(), 0, "empty file must report zero total rows");
     let chunks = reader.scan(None, &[]).unwrap();
-    assert!(chunks.is_empty() || chunks.iter().all(|c| c.count() == 0));
+    assert!(chunks.is_empty() || chunks.iter().all(|c| c.count() == 0), "scanning an empty file must yield no data");
 }

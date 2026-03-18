@@ -8,7 +8,7 @@ fn test_vectorized_add_i32() {
     let b = vec![10, 20, 30, 40, 50];
     let mut out = vec![0i32; 5];
     vectorized_add_i32(&a, &b, &mut out);
-    assert_eq!(out, vec![11, 22, 33, 44, 55]);
+    assert_eq!(out, vec![11, 22, 33, 44, 55], "vectorized add should compute element-wise addition identical to scalar code");
 }
 
 #[test]
@@ -25,7 +25,7 @@ fn test_vectorized_filter_gt_i32() {
     let values = vec![1, 5, 3, 8, 2, 9, 4];
     let mut indices = vec![0u32; values.len()];
     let count = vectorized_filter_gt_i32(&values, 4, &mut indices);
-    assert_eq!(count, 3); // 5, 8, 9
+    assert_eq!(count, 3, "vectorized filter should select exactly the 3 values > 4: {5, 8, 9}");
     let selected: Vec<i32> = indices[..count].iter().map(|&i| values[i as usize]).collect();
     assert!(selected.contains(&5));
     assert!(selected.contains(&8));
@@ -46,12 +46,12 @@ fn test_vectorized_hash_i64() {
     let mut out = vec![0u64; 5];
     vectorized_hash_i64(&values, &mut out);
 
-    assert_ne!(out[0], out[1]);
+    assert_ne!(out[0], out[1], "distinct input values should produce distinct hashes to minimize hash collisions");
     assert_ne!(out[1], out[2]);
 
     let mut out2 = vec![0u64; 5];
     vectorized_hash_i64(&values, &mut out2);
-    assert_eq!(out, out2);
+    assert_eq!(out, out2, "vectorized hash must be deterministic -- same inputs must always produce the same hashes");
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn test_branchless_min_i32() {
     let b = vec![2, 7, 1, 8, 2];
     let mut out = vec![0i32; 5];
     branchless_min_i32(&a, &b, &mut out);
-    assert_eq!(out, vec![2, 1, 1, 1, 2]);
+    assert_eq!(out, vec![2, 1, 1, 1, 2], "branchless min avoids branch misprediction by using conditional moves instead of if/else");
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn test_vectorized_add_nullable() {
 
     vectorized_add_nullable_i32(&a, &b, &validity_a, &validity_b, &mut out, &mut validity_out);
 
-    assert_eq!(out[1], 22);
+    assert_eq!(out[1], 22, "non-null positions (where both validity bits are set) should contain the correct sum");
     assert_eq!(out[3], 44);
 }
 
@@ -91,7 +91,7 @@ fn test_vectorized_add_nullable() {
 fn test_vectorized_sum_i32() {
     let values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let sum = vectorized_sum_i32(&values);
-    assert_eq!(sum, 55);
+    assert_eq!(sum, 55, "vectorized sum of 1..10 should equal n*(n+1)/2 = 55");
 }
 
 #[test]
@@ -135,5 +135,5 @@ fn test_vectorized_empty() {
 #[test]
 fn test_vectorized_sum_empty() {
     let sum = vectorized_sum_i32(&[]);
-    assert_eq!(sum, 0);
+    assert_eq!(sum, 0, "vectorized sum of an empty slice should return 0 as the identity element for addition");
 }

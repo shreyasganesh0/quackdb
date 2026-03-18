@@ -11,8 +11,8 @@ fn test_bloom_filter_basic() {
     bf.insert(b"hello");
     bf.insert(b"world");
 
-    assert!(bf.might_contain(b"hello"));
-    assert!(bf.might_contain(b"world"));
+    assert!(bf.might_contain(b"hello"), "bloom filter must never produce false negatives for inserted elements");
+    assert!(bf.might_contain(b"world"), "bloom filter must never produce false negatives for inserted elements");
 }
 
 #[test]
@@ -33,13 +33,13 @@ fn test_bloom_filter_false_positive_rate() {
         }
     }
     let fp_rate = false_positives as f64 / 1000.0;
-    assert!(fp_rate < 0.05, "False positive rate {} too high", fp_rate);
+    assert!(fp_rate < 0.05, "bloom filter false positive rate should stay under 5% for a correctly sized filter, got {:.2}%", fp_rate * 100.0);
 }
 
 #[test]
 fn test_bloom_filter_empty() {
     let bf = BloomFilter::new(100, 0.01);
-    assert!(!bf.might_contain(b"anything"));
+    assert!(!bf.might_contain(b"anything"), "an empty bloom filter should never report that it might contain an element");
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_adaptive_parallelism() {
     };
 
     let workers = ap.adjust(&stats);
-    assert!(workers >= 1 && workers <= 8);
+    assert!(workers >= 1 && workers <= 8, "adaptive parallelism must stay within the configured min/max worker bounds");
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_adaptive_parallelism_scale_down() {
     };
 
     let workers = ap.adjust(&stats);
-    assert!(workers <= 4);
+    assert!(workers <= 4, "small workloads should scale down parallelism to avoid thread overhead exceeding the work itself");
 }
 
 #[test]
@@ -106,6 +106,6 @@ fn test_bloom_filter_runtime_pushdown() {
             filtered += 1;
         }
     }
-    assert!(filtered >= 100);
-    assert!(filtered < 200);
+    assert!(filtered >= 100, "all 100 inserted values must pass the bloom filter (no false negatives allowed)");
+    assert!(filtered < 200, "bloom filter should reject some of the 100 non-inserted values, reducing probe work at runtime");
 }

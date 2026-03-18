@@ -8,7 +8,7 @@ fn test_parse_simple_select() {
     let stmt = Parser::parse_sql("SELECT 1").unwrap();
     if let Statement::Select(s) = stmt {
         assert_eq!(s.select_list.len(), 1);
-        assert!(s.from.is_none());
+        assert!(s.from.is_none(), "SELECT without FROM should have no table reference");
     } else {
         panic!("Expected SELECT statement");
     }
@@ -18,7 +18,7 @@ fn test_parse_simple_select() {
 fn test_parse_select_from() {
     let stmt = Parser::parse_sql("SELECT * FROM users").unwrap();
     if let Statement::Select(s) = stmt {
-        assert!(matches!(s.select_list[0], SelectItem::Wildcard));
+        assert!(matches!(s.select_list[0], SelectItem::Wildcard), "* should parse as Wildcard, not an expression");
         assert!(s.from.is_some());
     } else {
         panic!("Expected SELECT statement");
@@ -102,9 +102,9 @@ fn test_parse_expression_precedence() {
         if let SelectItem::Expression { expr, .. } = &s.select_list[0] {
             // Should parse as 1 + (2 * 3), not (1 + 2) * 3
             if let Expr::BinaryOp { op, left, right } = expr {
-                assert_eq!(*op, BinaryOpAst::Add);
+                assert_eq!(*op, BinaryOpAst::Add, "top-level op should be Add since * binds tighter than +");
                 // Right should be 2 * 3
-                assert!(matches!(right.as_ref(), Expr::BinaryOp { op: BinaryOpAst::Multiply, .. }));
+                assert!(matches!(right.as_ref(), Expr::BinaryOp { op: BinaryOpAst::Multiply, .. }), "parser must respect operator precedence: 1 + (2 * 3), not (1 + 2) * 3");
             } else {
                 panic!("Expected binary op");
             }
@@ -129,7 +129,7 @@ fn test_parse_create_table() {
     let stmt = Parser::parse_sql(sql).unwrap();
     if let Statement::CreateTable(ct) = stmt {
         assert_eq!(ct.table_name, "users");
-        assert_eq!(ct.columns.len(), 3);
+        assert_eq!(ct.columns.len(), 3, "parser should extract all column definitions from the CREATE TABLE statement");
         assert_eq!(ct.columns[0].name, "id");
         assert_eq!(ct.columns[1].name, "name");
     } else {
@@ -143,7 +143,7 @@ fn test_parse_insert() {
     let stmt = Parser::parse_sql(sql).unwrap();
     if let Statement::Insert(ins) = stmt {
         assert_eq!(ins.table_name, "users");
-        assert_eq!(ins.values.len(), 2);
+        assert_eq!(ins.values.len(), 2, "INSERT should parse multiple value tuples separated by commas");
         assert_eq!(ins.values[0].len(), 2);
     } else {
         panic!("Expected INSERT");
@@ -155,7 +155,7 @@ fn test_parse_alias() {
     let stmt = Parser::parse_sql("SELECT id AS user_id FROM users u").unwrap();
     if let Statement::Select(s) = stmt {
         if let SelectItem::Expression { alias, .. } = &s.select_list[0] {
-            assert_eq!(alias.as_deref(), Some("user_id"));
+            assert_eq!(alias.as_deref(), Some("user_id"), "AS keyword should bind the alias to the expression");
         }
         if let Some(TableRef::Table { alias, .. }) = &s.from {
             assert_eq!(alias.as_deref(), Some("u"));
@@ -170,7 +170,7 @@ fn test_parse_function() {
         if let SelectItem::Expression { expr, .. } = &s.select_list[0] {
             if let Expr::Function { name, distinct, .. } = expr {
                 assert_eq!(name.to_uppercase(), "COUNT");
-                assert!(*distinct);
+                assert!(*distinct, "DISTINCT modifier inside a function call must be captured by the parser");
             } else {
                 panic!("Expected function");
             }
@@ -181,7 +181,7 @@ fn test_parse_function() {
 #[test]
 fn test_parse_error() {
     let result = Parser::parse_sql("SELECT FROM");
-    assert!(result.is_err());
+    assert!(result.is_err(), "SELECT without expressions before FROM is a syntax error");
 }
 
 #[test]

@@ -6,18 +6,18 @@ use quackdb::sql::lexer::*;
 fn test_lex_select() {
     let mut lexer = Lexer::new("SELECT * FROM users");
     let tokens = lexer.tokenize().unwrap();
-    assert_eq!(tokens[0].token, Token::Keyword(Keyword::Select));
+    assert_eq!(tokens[0].token, Token::Keyword(Keyword::Select), "SELECT should be recognized as a keyword, not an identifier");
     assert_eq!(tokens[1].token, Token::Star);
     assert_eq!(tokens[2].token, Token::Keyword(Keyword::From));
-    assert_eq!(tokens[3].token, Token::Identifier("users".to_string()));
-    assert_eq!(tokens[4].token, Token::Eof);
+    assert_eq!(tokens[3].token, Token::Identifier("users".to_string()), "table names are identifiers, not keywords");
+    assert_eq!(tokens[4].token, Token::Eof, "token stream must end with EOF to signal end of input");
 }
 
 #[test]
 fn test_lex_case_insensitive() {
     let mut lexer = Lexer::new("select FROM Where");
     let tokens = lexer.tokenize().unwrap();
-    assert_eq!(tokens[0].token, Token::Keyword(Keyword::Select));
+    assert_eq!(tokens[0].token, Token::Keyword(Keyword::Select), "SQL keywords must be case-insensitive: 'select' == 'SELECT'");
     assert_eq!(tokens[1].token, Token::Keyword(Keyword::From));
     assert_eq!(tokens[2].token, Token::Keyword(Keyword::Where));
 }
@@ -29,7 +29,7 @@ fn test_lex_integer() {
     assert_eq!(tokens[0].token, Token::Integer(42));
     assert_eq!(tokens[1].token, Token::Integer(0));
     // -100 could be Minus then Integer(100)
-    assert_eq!(tokens[2].token, Token::Minus);
+    assert_eq!(tokens[2].token, Token::Minus, "lexer treats minus as an operator, not part of a negative literal");
     assert_eq!(tokens[3].token, Token::Integer(100));
 }
 
@@ -47,7 +47,7 @@ fn test_lex_string() {
     let tokens = lexer.tokenize().unwrap();
     assert_eq!(tokens[0].token, Token::StringLiteral("hello world".to_string()));
     // Escaped single quote
-    assert_eq!(tokens[1].token, Token::StringLiteral("it's".to_string()));
+    assert_eq!(tokens[1].token, Token::StringLiteral("it's".to_string()), "SQL escapes single quotes by doubling them: '' becomes '");
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn test_lex_operators() {
     assert_eq!(tokens[8].token, Token::LessThanOrEqual);
     assert_eq!(tokens[9].token, Token::GreaterThan);
     assert_eq!(tokens[10].token, Token::GreaterThanOrEqual);
-    assert_eq!(tokens[11].token, Token::NotEqual); // <> is also NotEqual
+    assert_eq!(tokens[11].token, Token::NotEqual, "<> is the SQL-standard not-equal operator, equivalent to !=");
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn test_lex_dot_notation() {
 fn test_lex_error_unterminated_string() {
     let mut lexer = Lexer::new("'unterminated");
     let result = lexer.tokenize();
-    assert!(result.is_err());
+    assert!(result.is_err(), "unterminated string literal must be a lexer error, not silently accepted");
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn test_lex_position_tracking() {
     let mut lexer = Lexer::new("SELECT\nFROM");
     let tokens = lexer.tokenize().unwrap();
     assert_eq!(tokens[0].position.line, 1);
-    assert_eq!(tokens[1].position.line, 2);
+    assert_eq!(tokens[1].position.line, 2, "lexer must track line numbers across newlines for error reporting");
 }
 
 #[test]

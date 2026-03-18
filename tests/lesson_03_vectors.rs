@@ -6,7 +6,7 @@ use quackdb::vector::{ValidityMask, Vector, VectorType, SelectionVector};
 #[test]
 fn test_validity_mask_all_valid() {
     let mask = ValidityMask::new_all_valid(100);
-    assert!(mask.all_valid());
+    assert!(mask.all_valid(), "new_all_valid must produce a mask where all_valid() returns true");
     assert_eq!(mask.count_valid(), 100);
     for i in 0..100 {
         assert!(mask.is_valid(i));
@@ -17,7 +17,7 @@ fn test_validity_mask_all_valid() {
 fn test_validity_mask_all_invalid() {
     let mask = ValidityMask::new_all_invalid(100);
     assert!(!mask.all_valid());
-    assert_eq!(mask.count_valid(), 0);
+    assert_eq!(mask.count_valid(), 0, "all-invalid mask should have zero valid entries");
     for i in 0..100 {
         assert!(!mask.is_valid(i));
     }
@@ -28,12 +28,12 @@ fn test_validity_mask_set() {
     let mut mask = ValidityMask::new_all_valid(64);
     mask.set_valid(10, false);
     assert!(!mask.is_valid(10));
-    assert!(mask.is_valid(9));
-    assert!(mask.is_valid(11));
-    assert_eq!(mask.count_valid(), 63);
+    assert!(mask.is_valid(9), "invalidating index 10 must not affect neighboring index 9");
+    assert!(mask.is_valid(11), "invalidating index 10 must not affect neighboring index 11");
+    assert_eq!(mask.count_valid(), 63, "invalidating one entry should decrement the valid count by one");
 
     mask.set_valid(10, true);
-    assert!(mask.is_valid(10));
+    assert!(mask.is_valid(10), "re-validating a previously invalidated index must restore it");
     assert_eq!(mask.count_valid(), 64);
 }
 
@@ -57,10 +57,10 @@ fn test_validity_mask_resize() {
     let mut mask = ValidityMask::new_all_valid(50);
     mask.set_valid(25, false);
     mask.resize(100);
-    assert!(!mask.is_valid(25));
+    assert!(!mask.is_valid(25), "resize must preserve existing validity state");
     // New entries should be valid
     for i in 50..100 {
-        assert!(mask.is_valid(i));
+        assert!(mask.is_valid(i), "newly added entries after resize should default to valid");
     }
 }
 
@@ -75,7 +75,7 @@ fn test_vector_flat_int32() {
         let val = vec.get_value(i);
         assert_eq!(val, ScalarValue::Int32(i as i32 * 10));
     }
-    assert_eq!(vec.vector_type(), VectorType::Flat);
+    assert_eq!(vec.vector_type(), VectorType::Flat, "default vector storage should be flat (uncompressed)");
     assert_eq!(vec.count(), 10);
 }
 
@@ -91,7 +91,7 @@ fn test_vector_nulls() {
 
     assert!(vec.validity().is_valid(0));
     assert!(vec.validity().is_valid(1));
-    assert!(!vec.validity().is_valid(2));
+    assert!(!vec.validity().is_valid(2), "set_null must mark the entry as invalid in the validity mask");
     assert!(vec.validity().is_valid(3));
     assert!(!vec.validity().is_valid(4));
 
@@ -103,10 +103,10 @@ fn test_vector_nulls() {
 #[test]
 fn test_vector_constant() {
     let vec = Vector::new_constant(ScalarValue::Int32(42), 100);
-    assert_eq!(vec.vector_type(), VectorType::Constant);
+    assert_eq!(vec.vector_type(), VectorType::Constant, "constant vectors store one value for all rows");
     assert_eq!(vec.count(), 100);
     assert_eq!(vec.get_value(0), ScalarValue::Int32(42));
-    assert_eq!(vec.get_value(50), ScalarValue::Int32(42));
+    assert_eq!(vec.get_value(50), ScalarValue::Int32(42), "constant vector must return the same value at any index");
     assert_eq!(vec.get_value(99), ScalarValue::Int32(42));
 }
 
@@ -124,9 +124,9 @@ fn test_vector_flatten() {
     let mut vec = Vector::new_constant(ScalarValue::Int32(7), 5);
     assert_eq!(vec.vector_type(), VectorType::Constant);
     vec.flatten();
-    assert_eq!(vec.vector_type(), VectorType::Flat);
+    assert_eq!(vec.vector_type(), VectorType::Flat, "flatten must convert constant to flat representation");
     for i in 0..5 {
-        assert_eq!(vec.get_value(i), ScalarValue::Int32(7));
+        assert_eq!(vec.get_value(i), ScalarValue::Int32(7), "flatten must materialize the constant value into every slot");
     }
 }
 
@@ -161,7 +161,7 @@ fn test_vector_copy_with_selection() {
     src.copy_with_selection(&sel, &mut dst);
 
     assert_eq!(dst.count(), 3);
-    assert_eq!(dst.get_value(0), ScalarValue::Int32(100));
+    assert_eq!(dst.get_value(0), ScalarValue::Int32(100), "selection [1,3,7] should map index 0 to source index 1");
     assert_eq!(dst.get_value(1), ScalarValue::Int32(300));
     assert_eq!(dst.get_value(2), ScalarValue::Int32(700));
 }
@@ -184,7 +184,7 @@ fn test_vector_string_empty() {
     vec.append_string("");
     vec.append_string("notempty");
 
-    assert_eq!(vec.get_string(0), Some(""));
+    assert_eq!(vec.get_string(0), Some(""), "empty strings must be stored and retrieved, not treated as NULL");
     assert_eq!(vec.get_string(1), Some("notempty"));
 }
 

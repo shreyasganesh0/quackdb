@@ -17,7 +17,7 @@ fn test_single_scan_plan() {
     let planner = DistributedPlanner::new(4);
     let plan = make_scan("users");
     let fragments = planner.plan(plan).unwrap();
-    assert!(!fragments.is_empty());
+    assert!(!fragments.is_empty(), "even a single scan must produce at least one fragment to be scheduled on a worker node");
     // Single scan needs a gather exchange at the end
 }
 
@@ -41,7 +41,7 @@ fn test_join_repartition() {
         matches!(f.exchange_input, Some(ExchangeType::Repartition { .. }))
         || matches!(f.exchange_output, Some(ExchangeType::Repartition { .. }))
     });
-    assert!(has_repartition || fragments.len() > 1);
+    assert!(has_repartition || fragments.len() > 1, "distributed join requires repartition exchanges so both sides are co-partitioned on the join key");
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn test_aggregate_repartition() {
     };
 
     let fragments = planner.plan(plan).unwrap();
-    assert!(!fragments.is_empty());
+    assert!(!fragments.is_empty(), "distributed aggregation needs partial-agg fragments on workers and a final-agg fragment on the coordinator");
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_fragment_builder() {
     assert_eq!(id, 0);
     let fragments = builder.build();
     assert_eq!(fragments.len(), 1);
-    assert_eq!(fragments[0].fragment_id, 0);
+    assert_eq!(fragments[0].fragment_id, 0, "fragment IDs should be assigned sequentially starting from 0");
 }
 
 #[test]
@@ -113,5 +113,5 @@ fn test_multi_join_fragments() {
     };
 
     let fragments = planner.plan(plan).unwrap();
-    assert!(fragments.len() >= 2);
+    assert!(fragments.len() >= 2, "a multi-way join must be split into multiple fragments connected by exchange operators");
 }

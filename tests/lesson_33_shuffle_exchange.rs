@@ -24,8 +24,8 @@ fn test_exchange_channel() {
     sender.close();
 
     let received = receiver.recv().unwrap();
-    assert_eq!(received.count(), 3);
-    assert!(receiver.recv().is_none());
+    assert_eq!(received.count(), 3, "exchange channel should deliver the complete chunk without losing rows");
+    assert!(receiver.recv().is_none(), "after sender.close(), recv should return None to signal end-of-stream");
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn test_gather_operator() {
     while let Some(chunk) = gather.next_chunk() {
         total += chunk.count();
     }
-    assert_eq!(total, 4);
+    assert_eq!(total, 4, "gather operator should merge all chunks from all input channels into one stream");
 }
 
 #[test]
@@ -58,8 +58,8 @@ fn test_broadcast() {
 
     let c1 = r1.recv().unwrap();
     let c2 = r2.recv().unwrap();
-    assert_eq!(c1.count(), 2);
-    assert_eq!(c2.count(), 2);
+    assert_eq!(c1.count(), 2, "broadcast must send a full copy of the data to every receiver");
+    assert_eq!(c2.count(), 2, "broadcast must send a full copy of the data to every receiver");
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn test_distributed_executor() {
 
     let results = executor.execute(fragments, &catalog).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 10);
+    assert_eq!(total, 10, "distributed executor should return all rows from the source table after plan execution");
 }
 
 #[test]
@@ -119,5 +119,5 @@ fn test_backpressure() {
     while let Some(c) = receiver.recv() {
         count += c.count();
     }
-    assert_eq!(count, 100);
+    assert_eq!(count, 100, "exchange channels must handle backpressure without losing data when sender outpaces receiver");
 }

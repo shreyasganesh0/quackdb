@@ -36,12 +36,12 @@ fn test_wal_write_read() {
     let lsn3 = writer.append(WalRecord::Commit { txn_id: 1 }).unwrap();
     writer.flush().unwrap();
 
-    assert!(lsn1 < lsn2);
+    assert!(lsn1 < lsn2, "LSNs must be monotonically increasing to establish a total order of WAL entries");
     assert!(lsn2 < lsn3);
 
     let mut reader = WalReader::new(Cursor::new(&buf));
     let entries = reader.read_all().unwrap();
-    assert_eq!(entries.len(), 3);
+    assert_eq!(entries.len(), 3, "WAL should contain exactly Begin, Insert, Commit for one complete transaction");
     assert!(matches!(entries[0].record, WalRecord::Begin { txn_id: 1 }));
     assert!(matches!(entries[2].record, WalRecord::Commit { txn_id: 1 }));
 }
@@ -61,8 +61,8 @@ fn test_recovery_committed() {
     writer.flush().unwrap();
 
     let result = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
-    assert!(result.committed.contains(&1));
-    assert!(!result.redo_ops.is_empty());
+    assert!(result.committed.contains(&1), "recovery should identify txn 1 as committed since its Commit record is in the WAL");
+    assert!(!result.redo_ops.is_empty(), "committed transactions need redo operations to restore their effects after a crash");
 }
 
 #[test]
@@ -80,9 +80,9 @@ fn test_recovery_uncommitted() {
     writer.flush().unwrap();
 
     let result = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
-    assert!(!result.committed.contains(&1));
-    assert!(result.aborted.contains(&1));
-    assert!(!result.undo_ops.is_empty());
+    assert!(!result.committed.contains(&1), "transaction without a Commit record must not be treated as committed");
+    assert!(result.aborted.contains(&1), "a transaction with Begin but no Commit in the WAL was in-flight during crash and must be aborted");
+    assert!(!result.undo_ops.is_empty(), "aborted transactions need undo operations to reverse their partial effects");
 }
 
 #[test]
@@ -107,8 +107,8 @@ fn test_recovery_mixed() {
     writer.flush().unwrap();
 
     let result = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
-    assert!(result.committed.contains(&1));
-    assert!(result.aborted.contains(&2));
+    assert!(result.committed.contains(&1), "txn 1 had a Commit record so recovery must redo it");
+    assert!(result.aborted.contains(&2), "txn 2 had no Commit record so recovery must undo it");
 }
 
 #[test]
@@ -173,6 +173,6 @@ fn test_recovery_idempotent() {
     let result1 = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
     let result2 = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
 
-    assert_eq!(result1.committed, result2.committed);
-    assert_eq!(result1.aborted, result2.aborted);
+    assert_eq!(result1.committed, result2.committed, "recovery must be idempotent -- running it twice should produce the same committed set");
+    assert_eq!(result1.aborted, result2.aborted, "recovery must be idempotent -- running it twice should produce the same aborted set");
 }

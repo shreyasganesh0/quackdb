@@ -29,7 +29,7 @@ fn test_hash_join_inner() {
     ht.build(build).unwrap();
 
     let result = ht.probe(&probe, &[0], JoinType::Inner).unwrap();
-    assert_eq!(result.count(), 2); // matches on id=1 and id=2
+    assert_eq!(result.count(), 2, "inner join should only emit rows where keys match on both sides");
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_hash_join_left() {
     ht.build(build).unwrap();
 
     let result = ht.probe(&probe, &[0], JoinType::Left).unwrap();
-    assert_eq!(result.count(), 3); // all probe rows kept, id=4 has NULLs for build columns
+    assert_eq!(result.count(), 3, "left join preserves all probe rows, padding NULLs for unmatched build columns");
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn test_hash_join_right() {
 
     let result = ht.probe(&probe, &[0], JoinType::Right).unwrap();
     // All build rows kept, id=3 has NULLs for probe columns
-    assert_eq!(result.count(), 3);
+    assert_eq!(result.count(), 3, "right join preserves all build rows, padding NULLs for unmatched probe columns");
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn test_hash_join_full() {
 
     let result = ht.probe(&probe, &[0], JoinType::Full).unwrap();
     // 2 matches + 1 unmatched build (id=3) + 1 unmatched probe (id=4) = 4
-    assert_eq!(result.count(), 4);
+    assert_eq!(result.count(), 4, "full outer join keeps all rows from both sides, with NULLs where no match exists");
 }
 
 #[test]
@@ -80,9 +80,9 @@ fn test_hash_join_semi() {
 
     let result = ht.probe(&probe, &[0], JoinType::Semi).unwrap();
     // Only probe rows that have a match: id=1, id=2
-    assert_eq!(result.count(), 2);
+    assert_eq!(result.count(), 2, "semi join returns probe rows that have at least one match, without duplicating");
     // Semi join only returns probe columns
-    assert_eq!(result.column_count(), 2); // probe has 2 columns
+    assert_eq!(result.column_count(), 2, "semi join outputs only probe-side columns, never build-side columns");
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn test_hash_join_anti() {
 
     let result = ht.probe(&probe, &[0], JoinType::Anti).unwrap();
     // Only probe rows with NO match: id=4
-    assert_eq!(result.count(), 1);
+    assert_eq!(result.count(), 1, "anti join is the complement of semi join: only rows with no match pass through");
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn test_hash_join_multi_key() {
     ht.build(build).unwrap();
 
     let result = ht.probe(&probe, &[0, 1], JoinType::Inner).unwrap();
-    assert_eq!(result.count(), 1); // only (1,10) matches
+    assert_eq!(result.count(), 1, "multi-key join requires ALL key columns to match, not just one");
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn test_hash_join_duplicates() {
     ht.build(build).unwrap();
 
     let result = ht.probe(&probe, &[0], JoinType::Inner).unwrap();
-    assert_eq!(result.count(), 2); // one probe row matches two build rows
+    assert_eq!(result.count(), 2, "duplicate keys produce a cross product: 1 probe row * 2 build rows = 2 output rows");
 }
 
 #[test]

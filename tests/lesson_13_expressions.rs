@@ -10,7 +10,7 @@ fn test_constant_expression() {
     let chunk = DataChunk::new(&[LogicalType::Int32]);
     let expr = Expression::Constant(ScalarValue::Int32(42));
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Int32(42));
+    assert_eq!(result.get_value(0), ScalarValue::Int32(42), "constant expressions should evaluate to their literal value regardless of input data");
 }
 
 #[test]
@@ -85,8 +85,8 @@ fn test_comparison_equal() {
     };
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Boolean(true));
-    assert_eq!(result.get_value(1), ScalarValue::Boolean(false));
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(true), "equality comparison should return true when values match");
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(false), "equality comparison should return false when values differ");
 }
 
 #[test]
@@ -120,8 +120,8 @@ fn test_boolean_and() {
     };
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Boolean(true));
-    assert_eq!(result.get_value(1), ScalarValue::Boolean(false));
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(true), "AND requires both operands to be true");
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(false), "AND returns false if either operand is false");
     assert_eq!(result.get_value(2), ScalarValue::Boolean(false));
 }
 
@@ -137,8 +137,8 @@ fn test_unary_negate() {
     };
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Int32(-42));
-    assert_eq!(result.get_value(1), ScalarValue::Int32(10));
+    assert_eq!(result.get_value(0), ScalarValue::Int32(-42), "negating a positive value should produce a negative");
+    assert_eq!(result.get_value(1), ScalarValue::Int32(10), "negating a negative value should produce a positive (double negation)");
 }
 
 #[test]
@@ -169,8 +169,8 @@ fn test_unary_is_null() {
     };
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Boolean(false));
-    assert_eq!(result.get_value(1), ScalarValue::Boolean(true));
+    assert_eq!(result.get_value(0), ScalarValue::Boolean(false), "IS NULL should return false for non-null values");
+    assert_eq!(result.get_value(1), ScalarValue::Boolean(true), "IS NULL should return true for null values");
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn test_cast_expression() {
     };
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Float64(42.0));
+    assert_eq!(result.get_value(0), ScalarValue::Float64(42.0), "casting Int32 to Float64 should preserve the numeric value");
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn test_nested_expression() {
     };
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
-    assert_eq!(result.get_value(0), ScalarValue::Int32(14));
+    assert_eq!(result.get_value(0), ScalarValue::Int32(14), "nested expressions should evaluate inner operations first: (3+4)*2=14");
 }
 
 #[test]
@@ -220,7 +220,7 @@ fn test_null_propagation() {
 
     let result = ExpressionExecutor::execute(&expr, &chunk).unwrap();
     // NULL + anything = NULL
-    assert!(!result.validity().is_valid(0));
+    assert!(!result.validity().is_valid(0), "NULL propagation: any arithmetic with NULL must produce NULL");
 }
 
 #[test]
@@ -234,12 +234,12 @@ fn test_expression_result_type() {
     };
     let result_type = expr.result_type(&types).unwrap();
     // Int32 + Int64 should produce Int64
-    assert_eq!(result_type, LogicalType::Int64);
+    assert_eq!(result_type, LogicalType::Int64, "type promotion: Int32 + Int64 should widen to Int64 to avoid precision loss");
 
     let cmp = Expression::BinaryOp {
         op: BinaryOp::Equal,
         left: Box::new(Expression::ColumnRef(0)),
         right: Box::new(Expression::Constant(ScalarValue::Int32(5))),
     };
-    assert_eq!(cmp.result_type(&types).unwrap(), LogicalType::Boolean);
+    assert_eq!(cmp.result_type(&types).unwrap(), LogicalType::Boolean, "comparison operators always produce Boolean regardless of input types");
 }

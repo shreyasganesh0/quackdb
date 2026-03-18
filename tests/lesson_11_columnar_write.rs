@@ -17,7 +17,7 @@ fn test_columnar_write_single_column() {
     let _ = writer.finish().unwrap();
 
     // Check magic bytes at start
-    assert_eq!(&buf[..4], MAGIC);
+    assert_eq!(&buf[..4], MAGIC, "file must start with magic bytes for format identification");
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn test_columnar_write_multi_column() {
     writer.end_row_group(2).unwrap();
     writer.finish().unwrap();
 
-    assert!(!buf.is_empty());
+    assert!(!buf.is_empty(), "multi-column write must produce output containing header, data, and footer");
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn test_columnar_write_chunk() {
     writer.write_chunk(&chunk).unwrap();
     writer.finish().unwrap();
 
-    assert!(&buf[..4] == MAGIC);
+    assert!(&buf[..4] == MAGIC, "DataChunk-based write must also produce a valid file header");
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn test_column_stats_update() {
     stats.update(&[1, 0, 0, 0], false);
     stats.update(&[], true); // null
 
-    assert_eq!(stats.null_count, 1);
+    assert_eq!(stats.null_count, 1, "stats must accurately track null values for query optimization");
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_column_stats_merge() {
     s2.max_value = Some(vec![20, 0]);
 
     s1.merge(&s2);
-    assert_eq!(s1.null_count, 5);
+    assert_eq!(s1.null_count, 5, "merging stats must sum null counts across row groups");
 }
 
 #[test]
@@ -138,12 +138,12 @@ fn test_footer_serialize_roundtrip() {
 
     let bytes = footer.to_bytes();
     let restored = FileFooter::from_bytes(&bytes).unwrap();
-    assert_eq!(restored.schema.len(), 2);
-    assert_eq!(restored.total_rows, 100);
-    assert_eq!(restored.row_groups.len(), 1);
+    assert_eq!(restored.schema.len(), 2, "footer must preserve the full schema for readers");
+    assert_eq!(restored.total_rows, 100, "total_rows in footer enables row-count queries without scanning");
+    assert_eq!(restored.row_groups.len(), 1, "row group metadata must survive footer serialization");
 }
 
 #[test]
 fn test_magic_bytes() {
-    assert_eq!(MAGIC, b"QUAK");
+    assert_eq!(MAGIC, b"QUAK", "magic bytes uniquely identify the file format and prevent misinterpretation");
 }

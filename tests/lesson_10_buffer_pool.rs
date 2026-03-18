@@ -9,10 +9,10 @@ fn test_buffer_pool_new_page() {
     let mut pool = BufferPool::new(disk, 10);
 
     let page_id = pool.new_page(PageType::Data).unwrap();
-    assert_eq!(pool.size(), 1);
+    assert_eq!(pool.size(), 1, "creating a page must add exactly one entry to the pool");
 
     let page = pool.fetch_page(page_id).unwrap();
-    assert_eq!(page.header.page_type, PageType::Data);
+    assert_eq!(page.header.page_type, PageType::Data, "fetched page must retain the type it was created with");
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn test_buffer_pool_cache_hit() {
     // Fetch again — should be a cache hit
     let page = pool.fetch_page(page_id).unwrap();
     let data = page.read_data(0, 11).unwrap();
-    assert_eq!(data, b"cached data");
+    assert_eq!(data, b"cached data", "buffer pool cache hit must return the same data without disk I/O");
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn test_buffer_pool_lru_eviction() {
 
     // Creating a 4th page should evict the LRU page (p1)
     let p4 = pool.new_page(PageType::Data).unwrap();
-    assert_eq!(pool.size(), 3); // Still at capacity
+    assert_eq!(pool.size(), 3, "pool must evict before growing beyond its capacity");
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_buffer_pool_pin_prevents_eviction() {
 
     // Creating p3 should evict p2 (unpinned), not p1 (pinned)
     let p3 = pool.new_page(PageType::Data).unwrap();
-    assert!(pool.fetch_page(p1).is_ok()); // p1 still in pool
+    assert!(pool.fetch_page(p1).is_ok(), "pinned pages must never be evicted, even under memory pressure");
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_buffer_pool_dirty_flush() {
     // Re-fetch should get the flushed data
     let page = pool.fetch_page(page_id).unwrap();
     let data = page.read_data(0, 10).unwrap();
-    assert_eq!(data, b"dirty data");
+    assert_eq!(data, b"dirty data", "flushed dirty page must persist to disk and survive eviction");
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn test_buffer_pool_capacity_limit() {
         pool.unpin_page(id, false).unwrap();
         page_ids.push(id);
     }
-    assert_eq!(pool.size(), 5);
+    assert_eq!(pool.size(), 5, "pool size must equal the number of pages when under capacity");
 }
 
 #[test]
@@ -137,5 +137,5 @@ fn test_inmemory_disk_manager() {
 
     // Read it back
     let read_page = disk.read_page(id).unwrap();
-    assert_eq!(read_page.read_data(0, 4).unwrap(), b"test");
+    assert_eq!(read_page.read_data(0, 4).unwrap(), b"test", "disk manager must faithfully persist and retrieve page contents");
 }
