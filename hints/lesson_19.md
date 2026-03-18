@@ -3,7 +3,7 @@
 ## What You're Building
 A sort engine with three components. MinHeap is a generic binary heap parameterized by a boxed comparison function, used for k-way merging. ExternalSortOperator sorts data that may exceed memory by splitting it into sorted runs, then merging them. TopNOperator optimizes ORDER BY ... LIMIT N by keeping only the N smallest rows. Real databases rely on sort for ORDER BY, GROUP BY, merge joins, and duplicate elimination.
 
-> **Unified Concept:** MinHeap is a utility for k-way merge -- focus on external sort as the core concept. The heap is just a building block, and TopN is a special case of sort. The single idea is: "sort data that does not fit in memory by divide-and-merge."
+> **Unified Concept:** You only need to understand ONE algorithm: **divide-sort-merge**. Split data into sorted runs, then merge them. The MinHeap is just a utility that makes the merge step efficient (it picks the smallest element from K runs). TopN is a variation that stops early after N rows. The heap and TopN are not separate concepts -- they are optimizations of the same divide-sort-merge idea.
 
 ## Concept Recap
 Building on Lessons 14 and 18: You'll use `RowComparator`, `SortKey`, `SortDirection`, and `NullOrder` from Lesson 18 for comparison logic. The sort operator integrates into the `Pipeline` framework from Lesson 14 as a pipeline-breaking operator. The `DataChunk` structure carries data through sort and merge phases. This is the final piece of the execution engine before you move to the SQL frontend.

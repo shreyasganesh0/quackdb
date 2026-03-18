@@ -108,6 +108,13 @@ impl<T: Clone> DefaultFill<T> {
 }
 ```
 
+## Recommended Implementation Order by Priority
+This lesson has 7 TODO functions. Tackle them in three tiers so you see tests pass early:
+
+- **Tier 1 — Start here** (core read/write path): `get_data_slice` / `get_data_slice_mut`, `set_value`, `get_value`. These unlock `test_vector_flat_int32`, `test_vector_nulls`, and `test_vector_get_typed_slice`. Focus on the unsafe type-punning pattern and the match-on-logical-type dispatch.
+- **Tier 2 — Structural operations**: `copy_with_selection`, `flatten`. These use the Tier 1 functions you already wrote. `flatten` materializes a constant vector into a flat one; `copy_with_selection` copies rows through an index mapping.
+- **Tier 3 — Varchar support**: `append_string`, `get_string`. String storage uses a separate offset-based layout. Tackle this last since it is independent of the fixed-size-type path and only affects the string tests.
+
 ## Step-by-Step Implementation Order
 1. Start with `ValidityMask::new_all_valid()` -- compute `(count + 63) / 64` words, fill with `u64::MAX` (all bits set = all valid)
 2. Implement `new_all_invalid()` -- same word count but fill with 0

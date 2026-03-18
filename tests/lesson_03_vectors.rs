@@ -124,7 +124,7 @@ fn test_vector_float64() {
     vec.set_value(1, ScalarValue::Float64(2.5));
     vec.set_value(2, ScalarValue::Float64(3.5));
 
-    assert_eq!(vec.get_value(0), ScalarValue::Float64(1.5));
+    assert_eq!(vec.get_value(0), ScalarValue::Float64(1.5), "Float64 values must round-trip through the byte buffer without precision loss");
     assert_eq!(vec.get_value(1), ScalarValue::Float64(2.5));
     assert_eq!(vec.get_value(2), ScalarValue::Float64(3.5));
 }
@@ -275,7 +275,7 @@ fn test_vector_get_typed_slice() {
         slice[3] = 40;
     }
     let slice: &[i32] = vec.get_data_slice();
-    assert_eq!(slice, &[10, 20, 30, 40]);
+    assert_eq!(slice, &[10, 20, 30, 40], "get_data_slice must reinterpret the byte buffer as a typed slice matching the values written via get_data_slice_mut");
 }
 
 #[test]

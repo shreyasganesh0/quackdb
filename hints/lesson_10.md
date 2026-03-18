@@ -3,7 +3,7 @@
 ## What You're Building
 A buffer pool manager that caches a fixed number of pages in memory and evicts the least-recently-used page when space runs out. It sits between the execution engine and disk, providing `fetch_page`, `unpin_page`, `new_page`, and `flush_page` operations. The disk backend is abstracted behind a `DiskManager` trait, allowing an in-memory implementation for testing and a file-backed one for production.
 
-> **Unified Concept:** Despite having multiple components (DiskManager trait, LRU list, pin counts, page table), this is ONE concept: a cache abstraction. The disk manager is the slow backing store, the buffer pool is the fast cache in front of it, and LRU + pin counts are the eviction policy. Everything serves a single purpose -- make disk pages appear to be in memory.
+> **Unified Concept:** This is ONE concept with three faces: **fetch** (load a page from disk into memory), **pin/unpin** (reference counting so in-use pages are not evicted), and **evict** (make room by writing a dirty page back and freeing its frame). They are phases of the same lifecycle: a page is fetched, pinned while in use, unpinned when done, and eventually evicted to make room for another. The DiskManager, LRU list, and page table are just the bookkeeping that makes this lifecycle work.
 
 ## Concept Recap
 Building on Lesson 09: You built `Page` with serialization, checksums, and the `PageBuilder`. Now you need a manager that caches pages in memory, loads them from disk on demand, and writes dirty pages back. The buffer pool uses `Page::to_bytes()` and `Page::from_bytes()` for disk persistence, and page IDs from your header to track which pages are cached.

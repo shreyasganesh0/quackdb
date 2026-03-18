@@ -243,7 +243,7 @@ fn test_external_sort_pipeline() {
     pipeline.add_operator(Box::new(sort_op));
 
     let results = PipelineExecutor::execute(pipeline).unwrap();
-    assert!(!results.is_empty());
+    assert!(!results.is_empty(), "external sort pipeline must produce at least one output chunk containing all sorted rows");
 }
 
 // ── 9. Top-N optimization ───────────────────────────────────────────

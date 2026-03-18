@@ -77,9 +77,9 @@ fn test_filter_merge() {
     let rule = FilterMerge;
     let optimized = rule.apply(filter2).unwrap();
 
-    // Two filters should be merged into one with AND
+    // Two adjacent Filter nodes should be merged into a single Filter with an AND predicate
     let pp = optimized.pretty_print();
-    // Should have only one filter node
+    // The merged filter combines both conditions, reducing tree depth by one node
 }
 
 // ── 4. Edge cases ───────────────────────────────────────────────────
@@ -180,7 +180,7 @@ fn test_projection_pushdown() {
     let rule = ProjectionPushdown;
     let optimized = rule.apply(proj).unwrap();
 
-    // Scan should now have a projection that only reads column 'a'
+    // Scan should now have a projection that only reads column 'a', avoiding unnecessary IO for columns 'b' and 'c'
 }
 
 // ── 8. Limit pushdown ──────────────────────────────────────────────

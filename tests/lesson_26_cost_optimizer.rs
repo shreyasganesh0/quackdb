@@ -54,7 +54,7 @@ fn test_cost_addition() {
 #[test]
 fn test_column_statistics_new() {
     let stats = ColumnStatistics::new(1000);
-    assert_eq!(stats.total_count, 1000);
+    assert_eq!(stats.total_count, 1000, "ColumnStatistics::new() must initialize total_count from the given row count");
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn test_cost_model_scan() {
     };
 
     let cost = CostModel::estimate(&plan, &stats_map);
-    assert!(cost.total() > 0.0);
+    assert!(cost.total() > 0.0, "scan cost must be positive because reading from disk always has a non-zero IO cost");
 }
 
 #[test]
@@ -265,7 +265,7 @@ fn test_join_order_two_tables() {
     }];
 
     let result = JoinOrderOptimizer::optimize(&relations, &edges, &stats_map).unwrap();
-    // Should produce a valid join plan
+    // DPsub must produce a valid join plan even for the simplest 2-table case
 }
 
 #[test]
@@ -290,5 +290,5 @@ fn test_join_order_four_tables() {
     ];
 
     let result = JoinOrderOptimizer::optimize(&relations, &edges, &stats_map).unwrap();
-    // Should produce a valid plan
+    // DPsub must handle chain-shaped join graphs by enumerating all subset partitions
 }

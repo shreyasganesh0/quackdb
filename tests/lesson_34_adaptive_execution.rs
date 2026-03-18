@@ -40,7 +40,7 @@ fn test_bloom_filter_empty() {
 #[test]
 fn test_runtime_statistics() {
     let stats = RuntimeStatistics::default();
-    assert_eq!(stats.rows_processed, 0);
+    assert_eq!(stats.rows_processed, 0, "RuntimeStatistics::default() must zero-initialize all counters so they accumulate from a clean baseline");
     assert_eq!(stats.bytes_processed, 0);
 }
 
@@ -141,6 +141,7 @@ fn test_adaptive_join_operator() {
     chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(100)]);
 
     let _ = op.execute(&chunk);
+    // The adaptive join operator should accept input without panicking, even for small chunks below the bloom filter threshold
 }
 
 // ── 7b. Bloom filter edge cases ──────────────────────────────────────

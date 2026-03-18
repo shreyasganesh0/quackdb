@@ -5,6 +5,15 @@ A cost-based optimizer comprising three parts: column statistics and cardinality
 
 > **Unified Concept:** This lesson has three layers, but they are a pipeline: statistics feed into the cost model, the cost model feeds into join ordering. You do not need to understand all three at once. Start with statistics (just counting things), then cost model (just arithmetic on those counts), then join ordering (just picking the cheapest combination). Each layer only uses the one before it.
 
+## Where to Start
+This lesson spans 3 files with 6 TODO functions. Work through them in order -- each file builds on the previous:
+
+1. **`statistics.rs`** (2 functions): `ColumnStatistics::new()` and `CardinalityEstimator::estimate()`. These are pure data: counting rows and estimating how many survive a filter. No dependencies on the other files.
+2. **`cost_model.rs`** (2 functions): `CostModel::scan_cost()`/`sort_cost()`/`hash_join_cost()` and `CostModel::estimate()`. These use the cardinality numbers from step 1 to assign CPU/IO/network costs. The formulas are straightforward arithmetic.
+3. **`join_order.rs`** (2 functions): `RelationSet` methods and `JoinOrderOptimizer::optimize()`. This uses the cost model from step 2 to compare plans. The bitmask subset enumeration is the only tricky part -- study the Gosper's hack pattern in the Key Patterns section below.
+
+If you complete `statistics.rs`, you can already pass the first 4 tests. Adding `cost_model.rs` passes 4 more. The join order tests only require the final file.
+
 ## Concept Recap
 Building on Lesson 25: The rule optimizer rewrites plans using structural patterns (e.g., "push filters down"). The cost optimizer goes further -- it enumerates multiple valid plans (especially join orderings) and picks the cheapest one using statistics. The `LogicalPlan` nodes and `Schema` from the planner are what the cardinality estimator and cost model analyze.
 

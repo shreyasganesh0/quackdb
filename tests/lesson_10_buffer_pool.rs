@@ -168,5 +168,5 @@ fn test_buffer_pool_flush_all() {
         pool.unpin_page(id, true).unwrap();
     }
 
-    pool.flush_all().unwrap();
+    pool.flush_all().expect("flush_all must write all dirty pages to disk without error, ensuring durability before shutdown");
 }
