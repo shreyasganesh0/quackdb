@@ -2,13 +2,29 @@
 
 use quackdb::simd::*;
 
+/// Helper: create two i32 test slices and an output buffer of the given length.
+/// Many SIMD tests need matching input/output slices, so this bundles the allocation.
+fn make_i32_test_slices(n: usize) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+    let a: Vec<i32> = (0..n as i32).collect();
+    let b: Vec<i32> = (0..n as i32).map(|x| x * 2).collect();
+    let out = vec![0i32; n];
+    (a, b, out)
+}
+
+/// Helper: verify element-wise addition of two i32 slices via vectorized_add_i32.
+fn assert_vectorized_add(a: &[i32], b: &[i32], expected: &[i32]) {
+    let mut out = vec![0i32; a.len()];
+    vectorized_add_i32(a, b, &mut out);
+    assert_eq!(out, expected, "vectorized add produced incorrect results");
+}
+
 #[test]
 fn test_vectorized_add_i32() {
-    let a = vec![1, 2, 3, 4, 5];
-    let b = vec![10, 20, 30, 40, 50];
-    let mut out = vec![0i32; 5];
-    vectorized_add_i32(&a, &b, &mut out);
-    assert_eq!(out, vec![11, 22, 33, 44, 55], "vectorized add should compute element-wise addition identical to scalar code");
+    assert_vectorized_add(
+        &[1, 2, 3, 4, 5],
+        &[10, 20, 30, 40, 50],
+        &[11, 22, 33, 44, 55],
+    );
 }
 
 #[test]
@@ -111,25 +127,17 @@ fn test_aligned_alloc() {
 
 #[test]
 fn test_vectorized_large_batch() {
-    let n = 10000;
-    let a: Vec<i32> = (0..n).collect();
-    let b: Vec<i32> = (0..n).map(|x| x * 2).collect();
-    let mut out = vec![0i32; n as usize];
-
+    let (a, b, mut out) = make_i32_test_slices(10000);
     vectorized_add_i32(&a, &b, &mut out);
 
-    for i in 0..n as usize {
+    for i in 0..out.len() {
         assert_eq!(out[i], a[i] + b[i]);
     }
 }
 
 #[test]
 fn test_vectorized_empty() {
-    let a: Vec<i32> = vec![];
-    let b: Vec<i32> = vec![];
-    let mut out: Vec<i32> = vec![];
-    vectorized_add_i32(&a, &b, &mut out);
-    assert!(out.is_empty());
+    assert_vectorized_add(&[], &[], &[]);
 }
 
 #[test]

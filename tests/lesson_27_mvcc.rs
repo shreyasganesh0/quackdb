@@ -3,12 +3,25 @@
 use quackdb::types::ScalarValue;
 use quackdb::transaction::mvcc::*;
 
-#[test]
-fn test_begin_commit() {
+/// Helper: create an MvccTable, begin a transaction, and insert a single Int32 row.
+/// Returns (table, txn_id, row_id) so the caller can commit/abort/scan as needed.
+fn setup_table_with_row(value: i32) -> (MvccTable, u64, u64) {
     let mut table = MvccTable::new();
     let txn = table.begin_transaction();
-    table.insert(txn, vec![ScalarValue::Int32(1)]).unwrap();
+    let row_id = table.insert(txn, vec![ScalarValue::Int32(value)]).unwrap();
+    (table, txn, row_id)
+}
+
+/// Helper: insert a row, commit, and return the table ready for further transactions.
+fn table_with_committed_row(value: i32) -> (MvccTable, u64) {
+    let (mut table, txn, row_id) = setup_table_with_row(value);
     table.commit(txn).unwrap();
+    (table, row_id)
+}
+
+#[test]
+fn test_begin_commit() {
+    let (mut table, _row_id) = table_with_committed_row(1);
 
     let txn2 = table.begin_transaction();
     let rows = table.scan(txn2);
@@ -41,10 +54,7 @@ fn test_snapshot_isolation() {
 
 #[test]
 fn test_abort_not_visible() {
-    let mut table = MvccTable::new();
-
-    let txn1 = table.begin_transaction();
-    table.insert(txn1, vec![ScalarValue::Int32(1)]).unwrap();
+    let (mut table, txn1, _row_id) = setup_table_with_row(1);
     table.abort(txn1).unwrap();
 
     let txn2 = table.begin_transaction();
@@ -54,10 +64,7 @@ fn test_abort_not_visible() {
 
 #[test]
 fn test_read_own_writes() {
-    let mut table = MvccTable::new();
-
-    let txn = table.begin_transaction();
-    table.insert(txn, vec![ScalarValue::Int32(42)]).unwrap();
+    let (mut table, txn, _row_id) = setup_table_with_row(42);
 
     // Should see own uncommitted write
     let rows = table.scan(txn);
@@ -67,11 +74,7 @@ fn test_read_own_writes() {
 
 #[test]
 fn test_delete() {
-    let mut table = MvccTable::new();
-
-    let txn1 = table.begin_transaction();
-    let row_id = table.insert(txn1, vec![ScalarValue::Int32(1)]).unwrap();
-    table.commit(txn1).unwrap();
+    let (mut table, row_id) = table_with_committed_row(1);
 
     let txn2 = table.begin_transaction();
     table.delete(txn2, row_id).unwrap();

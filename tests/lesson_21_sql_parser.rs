@@ -3,46 +3,39 @@
 use quackdb::sql::parser::Parser;
 use quackdb::sql::ast::*;
 
+/// Helper: parse SQL and return the inner SelectStatement, panicking if it's not a SELECT.
+/// Most parser tests exercise SELECT queries, so this eliminates repeated match/panic blocks.
+fn parse_select(sql: &str) -> SelectStatement {
+    match Parser::parse_sql(sql).expect("SQL should parse successfully") {
+        Statement::Select(s) => s,
+        other => panic!("Expected SELECT statement, got {:?}", other),
+    }
+}
+
 #[test]
 fn test_parse_simple_select() {
-    let stmt = Parser::parse_sql("SELECT 1").unwrap();
-    if let Statement::Select(s) = stmt {
-        assert_eq!(s.select_list.len(), 1);
-        assert!(s.from.is_none(), "SELECT without FROM should have no table reference");
-    } else {
-        panic!("Expected SELECT statement");
-    }
+    let s = parse_select("SELECT 1");
+    assert_eq!(s.select_list.len(), 1);
+    assert!(s.from.is_none(), "SELECT without FROM should have no table reference");
 }
 
 #[test]
 fn test_parse_select_from() {
-    let stmt = Parser::parse_sql("SELECT * FROM users").unwrap();
-    if let Statement::Select(s) = stmt {
-        assert!(matches!(s.select_list[0], SelectItem::Wildcard), "* should parse as Wildcard, not an expression");
-        assert!(s.from.is_some());
-    } else {
-        panic!("Expected SELECT statement");
-    }
+    let s = parse_select("SELECT * FROM users");
+    assert!(matches!(s.select_list[0], SelectItem::Wildcard), "* should parse as Wildcard, not an expression");
+    assert!(s.from.is_some());
 }
 
 #[test]
 fn test_parse_select_columns() {
-    let stmt = Parser::parse_sql("SELECT id, name FROM users").unwrap();
-    if let Statement::Select(s) = stmt {
-        assert_eq!(s.select_list.len(), 2);
-    } else {
-        panic!("Expected SELECT statement");
-    }
+    let s = parse_select("SELECT id, name FROM users");
+    assert_eq!(s.select_list.len(), 2);
 }
 
 #[test]
 fn test_parse_where() {
-    let stmt = Parser::parse_sql("SELECT * FROM users WHERE age > 18").unwrap();
-    if let Statement::Select(s) = stmt {
-        assert!(s.where_clause.is_some());
-    } else {
-        panic!("Expected SELECT statement");
-    }
+    let s = parse_select("SELECT * FROM users WHERE age > 18");
+    assert!(s.where_clause.is_some());
 }
 
 #[test]
@@ -61,38 +54,22 @@ fn test_parse_join() {
 
 #[test]
 fn test_parse_group_by() {
-    let stmt = Parser::parse_sql(
-        "SELECT department, COUNT(*) FROM employees GROUP BY department"
-    ).unwrap();
-    if let Statement::Select(s) = stmt {
-        assert_eq!(s.group_by.len(), 1);
-    } else {
-        panic!("Expected SELECT");
-    }
+    let s = parse_select("SELECT department, COUNT(*) FROM employees GROUP BY department");
+    assert_eq!(s.group_by.len(), 1);
 }
 
 #[test]
 fn test_parse_order_by() {
-    let stmt = Parser::parse_sql(
-        "SELECT * FROM users ORDER BY name ASC, age DESC"
-    ).unwrap();
-    if let Statement::Select(s) = stmt {
-        assert_eq!(s.order_by.len(), 2);
-        assert!(s.order_by[0].ascending);
-        assert!(!s.order_by[1].ascending);
-    } else {
-        panic!("Expected SELECT");
-    }
+    let s = parse_select("SELECT * FROM users ORDER BY name ASC, age DESC");
+    assert_eq!(s.order_by.len(), 2);
+    assert!(s.order_by[0].ascending);
+    assert!(!s.order_by[1].ascending);
 }
 
 #[test]
 fn test_parse_limit() {
-    let stmt = Parser::parse_sql("SELECT * FROM users LIMIT 10").unwrap();
-    if let Statement::Select(s) = stmt {
-        assert!(s.limit.is_some());
-    } else {
-        panic!("Expected SELECT");
-    }
+    let s = parse_select("SELECT * FROM users LIMIT 10");
+    assert!(s.limit.is_some());
 }
 
 #[test]

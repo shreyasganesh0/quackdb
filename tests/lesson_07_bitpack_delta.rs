@@ -3,6 +3,20 @@
 use quackdb::compression::bitpack;
 use quackdb::compression::delta;
 
+/// Helper: bitpack values at the given bit width and verify the roundtrip is lossless.
+fn assert_bitpack_roundtrip(values: &[u32], bit_width: u8) {
+    let packed = bitpack::pack(values, bit_width);
+    let unpacked = bitpack::unpack(&packed, bit_width, values.len());
+    assert_eq!(unpacked, values, "bitpack roundtrip failed for bit_width={}", bit_width);
+}
+
+/// Helper: delta-encode then decode data and verify the roundtrip is lossless.
+fn assert_delta_roundtrip(data: &[i64]) {
+    let encoded = delta::encode(data);
+    let decoded = delta::decode(&encoded);
+    assert_eq!(decoded, data, "delta encode/decode roundtrip must be lossless");
+}
+
 #[test]
 fn test_bits_required() {
     assert_eq!(bitpack::bits_required(0), 0, "zero needs no bits to represent");
@@ -17,17 +31,13 @@ fn test_bits_required() {
 #[test]
 fn test_bitpack_roundtrip_1bit() {
     let values: Vec<u32> = vec![0, 1, 0, 1, 1, 0, 0, 1];
-    let packed = bitpack::pack(&values, 1);
-    let unpacked = bitpack::unpack(&packed, 1, values.len());
-    assert_eq!(unpacked, values);
+    assert_bitpack_roundtrip(&values, 1);
 }
 
 #[test]
 fn test_bitpack_roundtrip_4bits() {
     let values: Vec<u32> = (0..100).map(|i| i % 16).collect();
-    let packed = bitpack::pack(&values, 4);
-    let unpacked = bitpack::unpack(&packed, 4, values.len());
-    assert_eq!(unpacked, values);
+    assert_bitpack_roundtrip(&values, 4);
 }
 
 #[test]
@@ -79,17 +89,13 @@ fn test_delta_encode_sequential() {
 #[test]
 fn test_delta_roundtrip() {
     let data: Vec<i64> = vec![100, 105, 103, 110, 108];
-    let encoded = delta::encode(&data);
-    let decoded = delta::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_delta_roundtrip(&data);
 }
 
 #[test]
 fn test_delta_negative() {
     let data: Vec<i64> = vec![100, 90, 80, 70, 60];
-    let encoded = delta::encode(&data);
-    let decoded = delta::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_delta_roundtrip(&data);
 }
 
 #[test]

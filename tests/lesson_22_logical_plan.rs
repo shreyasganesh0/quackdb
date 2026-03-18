@@ -4,6 +4,26 @@ use quackdb::types::LogicalType;
 use quackdb::planner::logical_plan::*;
 use quackdb::sql::ast::*;
 
+/// Helper: build a Scan plan node for the given table name and column definitions.
+/// Many logical plan tests start with a scan, so this eliminates the verbose struct literal.
+fn make_scan(table: &str, columns: &[(&str, LogicalType)]) -> LogicalPlan {
+    let schema = Schema::new(
+        columns.iter().map(|(n, t)| (n.to_string(), t.clone())).collect(),
+    );
+    LogicalPlan::Scan {
+        table_name: table.to_string(),
+        schema,
+        projection: None,
+    }
+}
+
+/// Helper: build a Schema from a slice of (name, type) pairs.
+fn make_schema(columns: &[(&str, LogicalType)]) -> Schema {
+    Schema::new(
+        columns.iter().map(|(n, t)| (n.to_string(), t.clone())).collect(),
+    )
+}
+
 #[test]
 fn test_schema() {
     let schema = Schema::new(vec![
@@ -19,8 +39,8 @@ fn test_schema() {
 
 #[test]
 fn test_schema_merge() {
-    let s1 = Schema::new(vec![("a".to_string(), LogicalType::Int32)]);
-    let s2 = Schema::new(vec![("b".to_string(), LogicalType::Float64)]);
+    let s1 = make_schema(&[("a", LogicalType::Int32)]);
+    let s2 = make_schema(&[("b", LogicalType::Float64)]);
     let merged = s1.merge(&s2);
     assert_eq!(merged.column_count(), 2, "schema merge concatenates columns from both schemas, as needed for joins");
     assert_eq!(merged.columns[0].0, "a");
@@ -60,11 +80,7 @@ fn test_scan_with_projection() {
 
 #[test]
 fn test_filter_plan_schema() {
-    let inner = LogicalPlan::Scan {
-        table_name: "t".to_string(),
-        schema: Schema::new(vec![("x".to_string(), LogicalType::Int32)]),
-        projection: None,
-    };
+    let inner = make_scan("t", &[("x", LogicalType::Int32)]);
     let plan = LogicalPlan::Filter {
         predicate: LogicalExpr::Literal(quackdb::types::ScalarValue::Boolean(true)),
         input: Box::new(inner),
@@ -75,16 +91,8 @@ fn test_filter_plan_schema() {
 
 #[test]
 fn test_join_plan_schema() {
-    let left = LogicalPlan::Scan {
-        table_name: "a".to_string(),
-        schema: Schema::new(vec![("x".to_string(), LogicalType::Int32)]),
-        projection: None,
-    };
-    let right = LogicalPlan::Scan {
-        table_name: "b".to_string(),
-        schema: Schema::new(vec![("y".to_string(), LogicalType::Float64)]),
-        projection: None,
-    };
+    let left = make_scan("a", &[("x", LogicalType::Int32)]);
+    let right = make_scan("b", &[("y", LogicalType::Float64)]);
     let plan = LogicalPlan::Join {
         left: Box::new(left),
         right: Box::new(right),
@@ -97,11 +105,7 @@ fn test_join_plan_schema() {
 
 #[test]
 fn test_limit_plan_schema() {
-    let inner = LogicalPlan::Scan {
-        table_name: "t".to_string(),
-        schema: Schema::new(vec![("a".to_string(), LogicalType::Int32)]),
-        projection: None,
-    };
+    let inner = make_scan("t", &[("a", LogicalType::Int32)]);
     let plan = LogicalPlan::Limit {
         count: 10,
         offset: 0,

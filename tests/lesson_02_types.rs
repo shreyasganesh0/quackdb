@@ -2,6 +2,27 @@
 
 use quackdb::types::{LogicalType, PhysicalType, ScalarValue};
 
+/// Helper: create a ScalarValue and verify its logical type matches expectations.
+/// Reduces boilerplate when testing type metadata across many scalar variants.
+fn assert_scalar_type(val: ScalarValue, expected: LogicalType) {
+    assert_eq!(
+        val.logical_type(),
+        expected,
+        "ScalarValue {:?} should have logical type {:?}",
+        val,
+        expected
+    );
+}
+
+/// Helper: roundtrip a ScalarValue through to_bytes / from_bytes serialization.
+fn assert_scalar_roundtrip(val: ScalarValue) {
+    let ty = val.logical_type();
+    let bytes = val.to_bytes();
+    let decoded = ScalarValue::from_bytes(&bytes, &ty)
+        .expect("from_bytes should succeed for a value produced by to_bytes");
+    assert_eq!(decoded, val, "Roundtrip failed for {:?}", val);
+}
+
 #[test]
 fn test_logical_to_physical_mapping() {
     assert_eq!(LogicalType::Boolean.physical_type(), PhysicalType::Bool);
@@ -52,11 +73,11 @@ fn test_type_categories() {
 
 #[test]
 fn test_scalar_value_types() {
-    assert_eq!(ScalarValue::Boolean(true).logical_type(), LogicalType::Boolean);
-    assert_eq!(ScalarValue::Int32(42).logical_type(), LogicalType::Int32);
-    assert_eq!(ScalarValue::Int64(100).logical_type(), LogicalType::Int64);
-    assert_eq!(ScalarValue::Float64(3.14).logical_type(), LogicalType::Float64);
-    assert_eq!(ScalarValue::Varchar("hello".into()).logical_type(), LogicalType::Varchar);
+    assert_scalar_type(ScalarValue::Boolean(true), LogicalType::Boolean);
+    assert_scalar_type(ScalarValue::Int32(42), LogicalType::Int32);
+    assert_scalar_type(ScalarValue::Int64(100), LogicalType::Int64);
+    assert_scalar_type(ScalarValue::Float64(3.14), LogicalType::Float64);
+    assert_scalar_type(ScalarValue::Varchar("hello".into()), LogicalType::Varchar);
     assert_eq!(ScalarValue::Null(LogicalType::Int32).logical_type(), LogicalType::Int32, "NULL values must carry their logical type for schema consistency");
 }
 
@@ -81,19 +102,14 @@ fn test_scalar_roundtrip() {
         ScalarValue::Float64(2.71828),
     ];
 
-    for val in &values {
-        let bytes = val.to_bytes();
-        let decoded = ScalarValue::from_bytes(&bytes, &val.logical_type()).unwrap();
-        assert_eq!(&decoded, val, "Roundtrip failed for {:?}", val);
+    for val in values {
+        assert_scalar_roundtrip(val);
     }
 }
 
 #[test]
 fn test_scalar_varchar_roundtrip() {
-    let val = ScalarValue::Varchar("hello world".into());
-    let bytes = val.to_bytes();
-    let decoded = ScalarValue::from_bytes(&bytes, &LogicalType::Varchar).unwrap();
-    assert_eq!(decoded, val, "variable-length types must survive serialization roundtrip");
+    assert_scalar_roundtrip(ScalarValue::Varchar("hello world".into()));
 }
 
 #[test]

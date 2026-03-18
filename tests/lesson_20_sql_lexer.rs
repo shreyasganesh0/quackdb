@@ -2,6 +2,26 @@
 
 use quackdb::sql::lexer::*;
 
+/// Helper: tokenize SQL and return just the Token values (stripping position info).
+/// Reduces boilerplate when tests only care about token types, not source positions.
+fn tokenize(sql: &str) -> Vec<Token> {
+    let mut lexer = Lexer::new(sql);
+    lexer.tokenize()
+        .expect("tokenization should succeed")
+        .into_iter()
+        .map(|t| t.token)
+        .collect()
+}
+
+/// Helper: tokenize SQL and extract only the Keyword tokens.
+/// Useful for tests that verify keyword recognition without checking every token.
+fn extract_keywords(sql: &str) -> Vec<Keyword> {
+    tokenize(sql)
+        .into_iter()
+        .filter_map(|t| if let Token::Keyword(k) = t { Some(k) } else { None })
+        .collect()
+}
+
 #[test]
 fn test_lex_select() {
     let mut lexer = Lexer::new("SELECT * FROM users");
@@ -15,11 +35,10 @@ fn test_lex_select() {
 
 #[test]
 fn test_lex_case_insensitive() {
-    let mut lexer = Lexer::new("select FROM Where");
-    let tokens = lexer.tokenize().unwrap();
-    assert_eq!(tokens[0].token, Token::Keyword(Keyword::Select), "SQL keywords must be case-insensitive: 'select' == 'SELECT'");
-    assert_eq!(tokens[1].token, Token::Keyword(Keyword::From));
-    assert_eq!(tokens[2].token, Token::Keyword(Keyword::Where));
+    let tokens = tokenize("select FROM Where");
+    assert_eq!(tokens[0], Token::Keyword(Keyword::Select), "SQL keywords must be case-insensitive: 'select' == 'SELECT'");
+    assert_eq!(tokens[1], Token::Keyword(Keyword::From));
+    assert_eq!(tokens[2], Token::Keyword(Keyword::Where));
 }
 
 #[test]
@@ -92,13 +111,7 @@ fn test_lex_complex_query() {
 
 #[test]
 fn test_lex_join() {
-    let sql = "SELECT a.id FROM a INNER JOIN b ON a.id = b.id";
-    let mut lexer = Lexer::new(sql);
-    let tokens = lexer.tokenize().unwrap();
-    // Check some key tokens
-    let keywords: Vec<_> = tokens.iter().filter_map(|t| {
-        if let Token::Keyword(k) = &t.token { Some(*k) } else { None }
-    }).collect();
+    let keywords = extract_keywords("SELECT a.id FROM a INNER JOIN b ON a.id = b.id");
     assert!(keywords.contains(&Keyword::Select));
     assert!(keywords.contains(&Keyword::From));
     assert!(keywords.contains(&Keyword::Inner));
@@ -132,12 +145,7 @@ fn test_lex_position_tracking() {
 
 #[test]
 fn test_lex_create_table() {
-    let sql = "CREATE TABLE users (id INTEGER, name VARCHAR)";
-    let mut lexer = Lexer::new(sql);
-    let tokens = lexer.tokenize().unwrap();
-    let keywords: Vec<_> = tokens.iter().filter_map(|t| {
-        if let Token::Keyword(k) = &t.token { Some(*k) } else { None }
-    }).collect();
+    let keywords = extract_keywords("CREATE TABLE users (id INTEGER, name VARCHAR)");
     assert!(keywords.contains(&Keyword::Create));
     assert!(keywords.contains(&Keyword::Table));
 }

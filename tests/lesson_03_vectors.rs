@@ -3,6 +3,25 @@
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::vector::{ValidityMask, Vector, VectorType, SelectionVector};
 
+/// Helper: create a flat Int32 vector pre-filled with the given values.
+/// Eliminates the repetitive new/set_count/set_value loop used in many tests.
+fn make_int32_vector(values: &[i32]) -> Vector {
+    let mut vec = Vector::new(LogicalType::Int32, values.len());
+    vec.set_count(values.len());
+    for (i, &v) in values.iter().enumerate() {
+        vec.set_value(i, ScalarValue::Int32(v));
+    }
+    vec
+}
+
+/// Helper: assert that a vector contains exactly the expected Int32 values.
+fn assert_int32_values(vec: &Vector, expected: &[i32]) {
+    assert_eq!(vec.count(), expected.len(), "vector length mismatch");
+    for (i, &v) in expected.iter().enumerate() {
+        assert_eq!(vec.get_value(i), ScalarValue::Int32(v), "mismatch at index {}", i);
+    }
+}
+
 #[test]
 fn test_validity_mask_all_valid() {
     let mask = ValidityMask::new_all_valid(100);
@@ -66,17 +85,10 @@ fn test_validity_mask_resize() {
 
 #[test]
 fn test_vector_flat_int32() {
-    let mut vec = Vector::new(LogicalType::Int32, 10);
-    vec.set_count(10);
-    for i in 0..10 {
-        vec.set_value(i, ScalarValue::Int32(i as i32 * 10));
-    }
-    for i in 0..10 {
-        let val = vec.get_value(i);
-        assert_eq!(val, ScalarValue::Int32(i as i32 * 10));
-    }
+    let expected: Vec<i32> = (0..10).map(|i| i * 10).collect();
+    let vec = make_int32_vector(&expected);
+    assert_int32_values(&vec, &expected);
     assert_eq!(vec.vector_type(), VectorType::Flat, "default vector storage should be flat (uncompressed)");
-    assert_eq!(vec.count(), 10);
 }
 
 #[test]
@@ -150,20 +162,14 @@ fn test_selection_vector_incrementing() {
 
 #[test]
 fn test_vector_copy_with_selection() {
-    let mut src = Vector::new(LogicalType::Int32, 10);
-    src.set_count(10);
-    for i in 0..10 {
-        src.set_value(i, ScalarValue::Int32(i as i32 * 100));
-    }
+    let values: Vec<i32> = (0..10).map(|i| i * 100).collect();
+    let src = make_int32_vector(&values);
 
     let sel = SelectionVector::new(vec![1, 3, 7]);
     let mut dst = Vector::new(LogicalType::Int32, 3);
     src.copy_with_selection(&sel, &mut dst);
 
-    assert_eq!(dst.count(), 3);
-    assert_eq!(dst.get_value(0), ScalarValue::Int32(100), "selection [1,3,7] should map index 0 to source index 1");
-    assert_eq!(dst.get_value(1), ScalarValue::Int32(300));
-    assert_eq!(dst.get_value(2), ScalarValue::Int32(700));
+    assert_int32_values(&dst, &[100, 300, 700]);
 }
 
 #[test]

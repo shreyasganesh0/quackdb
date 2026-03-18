@@ -3,6 +3,16 @@
 use quackdb::compression::dictionary;
 use quackdb::compression::dictionary::Dictionary;
 
+/// Helper: dictionary-encode data and verify the roundtrip is lossless.
+fn assert_dict_roundtrip<T>(data: &[Option<T>])
+where
+    T: Clone + Eq + std::fmt::Debug + std::hash::Hash,
+{
+    let encoded = dictionary::encode(data);
+    let decoded = dictionary::decode(&encoded);
+    assert_eq!(decoded, data, "dictionary encode/decode roundtrip must be lossless");
+}
+
 #[test]
 fn test_dictionary_basic() {
     let mut dict = Dictionary::<String>::new();
@@ -56,9 +66,7 @@ fn test_dictionary_roundtrip() {
     let data: Vec<Option<i32>> = vec![
         Some(10), Some(20), Some(10), Some(30), Some(20), Some(10),
     ];
-    let encoded = dictionary::encode(&data);
-    let decoded = dictionary::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_dict_roundtrip(&data);
 }
 
 #[test]
@@ -70,17 +78,13 @@ fn test_dictionary_with_nulls() {
         None,
         Some("a".into()),
     ];
-    let encoded = dictionary::encode(&data);
-    let decoded = dictionary::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_dict_roundtrip(&data);
 }
 
 #[test]
 fn test_dictionary_all_nulls() {
     let data: Vec<Option<i32>> = vec![None, None, None];
-    let encoded = dictionary::encode(&data);
-    let decoded = dictionary::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_dict_roundtrip(&data);
 }
 
 #[test]

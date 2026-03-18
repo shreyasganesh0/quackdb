@@ -4,6 +4,27 @@ use quackdb::types::ScalarValue;
 use quackdb::transaction::wal::*;
 use std::io::Cursor;
 
+/// Helper: create a WalWriter over an in-memory buffer, write the given records,
+/// flush, and return the raw bytes. Eliminates the repeated Cursor/Vec/flush boilerplate.
+fn write_wal_records(records: &[WalRecord]) -> Vec<u8> {
+    let mut buf = Vec::new();
+    {
+        let mut writer = WalWriter::new(Cursor::new(&mut buf));
+        for record in records {
+            writer.append(record.clone()).unwrap();
+        }
+        writer.flush().unwrap();
+    }
+    buf
+}
+
+/// Helper: write records to a WAL buffer, then read them all back.
+fn wal_roundtrip(records: &[WalRecord]) -> Vec<WalEntry> {
+    let buf = write_wal_records(records);
+    let mut reader = WalReader::new(Cursor::new(&buf));
+    reader.read_all().unwrap()
+}
+
 #[test]
 fn test_wal_record_roundtrip() {
     let record = WalRecord::Insert {
@@ -48,17 +69,14 @@ fn test_wal_write_read() {
 
 #[test]
 fn test_recovery_committed() {
-    let mut buf = Vec::new();
-    let mut writer = WalWriter::new(Cursor::new(&mut buf));
-    writer.append(WalRecord::Begin { txn_id: 1 }).unwrap();
-    writer.append(WalRecord::Insert {
-        txn_id: 1,
-        table: "t".to_string(),
-        row_id: 0,
-        data: vec![ScalarValue::Int32(1)],
-    }).unwrap();
-    writer.append(WalRecord::Commit { txn_id: 1 }).unwrap();
-    writer.flush().unwrap();
+    let buf = write_wal_records(&[
+        WalRecord::Begin { txn_id: 1 },
+        WalRecord::Insert {
+            txn_id: 1, table: "t".to_string(), row_id: 0,
+            data: vec![ScalarValue::Int32(1)],
+        },
+        WalRecord::Commit { txn_id: 1 },
+    ]);
 
     let result = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
     assert!(result.committed.contains(&1), "recovery should identify txn 1 as committed since its Commit record is in the WAL");
@@ -67,17 +85,14 @@ fn test_recovery_committed() {
 
 #[test]
 fn test_recovery_uncommitted() {
-    let mut buf = Vec::new();
-    let mut writer = WalWriter::new(Cursor::new(&mut buf));
-    writer.append(WalRecord::Begin { txn_id: 1 }).unwrap();
-    writer.append(WalRecord::Insert {
-        txn_id: 1,
-        table: "t".to_string(),
-        row_id: 0,
-        data: vec![ScalarValue::Int32(1)],
-    }).unwrap();
     // No commit! Simulating a crash
-    writer.flush().unwrap();
+    let buf = write_wal_records(&[
+        WalRecord::Begin { txn_id: 1 },
+        WalRecord::Insert {
+            txn_id: 1, table: "t".to_string(), row_id: 0,
+            data: vec![ScalarValue::Int32(1)],
+        },
+    ]);
 
     let result = RecoveryManager::recover(Cursor::new(&buf)).unwrap();
     assert!(!result.committed.contains(&1), "transaction without a Commit record must not be treated as committed");
@@ -113,16 +128,11 @@ fn test_recovery_mixed() {
 
 #[test]
 fn test_wal_checkpoint() {
-    let mut buf = Vec::new();
-    let mut writer = WalWriter::new(Cursor::new(&mut buf));
-
-    writer.append(WalRecord::Begin { txn_id: 1 }).unwrap();
-    writer.append(WalRecord::Commit { txn_id: 1 }).unwrap();
-    writer.append(WalRecord::Checkpoint { active_txns: vec![] }).unwrap();
-    writer.flush().unwrap();
-
-    let mut reader = WalReader::new(Cursor::new(&buf));
-    let entries = reader.read_all().unwrap();
+    let entries = wal_roundtrip(&[
+        WalRecord::Begin { txn_id: 1 },
+        WalRecord::Commit { txn_id: 1 },
+        WalRecord::Checkpoint { active_txns: vec![] },
+    ]);
     assert_eq!(entries.len(), 3);
     assert!(matches!(entries[2].record, WalRecord::Checkpoint { .. }));
 }

@@ -2,6 +2,26 @@
 
 use quackdb::compression::rle;
 
+/// Helper: create a Vec<i32> of repeated groups, e.g. `make_repeated_groups(3, 50)`
+/// produces [0,0,...(50 times), 1,1,...(50 times), 2,2,...(50 times)].
+/// Useful for constructing sorted/grouped data patterns for RLE tests.
+fn make_repeated_groups(num_groups: i32, elements_per_group: usize) -> Vec<i32> {
+    let mut data = Vec::new();
+    for i in 0..num_groups {
+        for _ in 0..elements_per_group {
+            data.push(i);
+        }
+    }
+    data
+}
+
+/// Helper: encode then decode data and assert the roundtrip is lossless.
+fn assert_rle_roundtrip<T: Clone + PartialEq + std::fmt::Debug>(data: &[T]) {
+    let encoded = rle::encode(data);
+    let decoded = rle::decode(&encoded);
+    assert_eq!(decoded, data, "RLE roundtrip must be lossless");
+}
+
 #[test]
 fn test_rle_all_same() {
     let data = vec![42i32; 1000];
@@ -26,16 +46,10 @@ fn test_rle_alternating() {
 
 #[test]
 fn test_rle_sorted() {
-    let mut data = Vec::new();
-    for i in 0..10 {
-        for _ in 0..50 {
-            data.push(i);
-        }
-    }
+    let data = make_repeated_groups(10, 50);
     let encoded = rle::encode(&data);
     assert_eq!(encoded.runs.len(), 10, "sorted data groups into one run per distinct value");
-    let decoded = rle::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_rle_roundtrip(&data);
 }
 
 #[test]
@@ -59,12 +73,7 @@ fn test_rle_empty() {
 
 #[test]
 fn test_rle_random_access() {
-    let mut data = Vec::new();
-    for i in 0..5 {
-        for _ in 0..100 {
-            data.push(i as i32);
-        }
-    }
+    let data = make_repeated_groups(5, 100);
     let encoded = rle::encode(&data);
 
     // Check random access at various positions
@@ -80,8 +89,7 @@ fn test_rle_roundtrip_strings() {
     let data = vec!["hello", "hello", "hello", "world", "world", "foo"];
     let encoded = rle::encode(&data);
     assert_eq!(encoded.runs.len(), 3, "RLE should be generic over string-like types too");
-    let decoded = rle::decode(&encoded);
-    assert_eq!(decoded, data);
+    assert_rle_roundtrip(&data);
 }
 
 #[test]
