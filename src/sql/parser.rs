@@ -1,7 +1,17 @@
-//! Lesson 21: SQL Parser (Pratt Parsing)
+//! # Lesson 21: SQL Frontend — Parser (File 1 of 2)
 //!
-//! Recursive descent parser that uses Pratt parsing (binding powers) for
-//! expression precedence. Converts a token stream into an AST.
+//! This file implements the SQL parser, a recursive descent parser that uses
+//! Pratt parsing (binding powers) for expression precedence. It consumes a
+//! token stream and produces AST nodes defined in `ast.rs`.
+//!
+//! It works together with:
+//! - `ast.rs` — defines all AST node types (`Statement`, `Expr`, `TableRef`,
+//!   etc.) that this parser constructs.
+//!
+//! **Start here**: Read `ast.rs` first to understand the target data structures,
+//! then implement `parser.rs`. The AST types are mostly data definitions with
+//! no logic, so reading them is quick and gives you the "shape" of what the
+//! parser must produce.
 //!
 //! **Key idea:** Each statement type (SELECT, CREATE TABLE, INSERT) has its
 //! own parsing method. Expressions use Pratt parsing: each operator has a
@@ -49,9 +59,14 @@ impl Parser {
 
     /// Convenience: lex and parse a SQL string in one call.
     pub fn parse_sql(sql: &str) -> Result<Statement, ParseError> {
-        // Hint: create a Lexer, call tokenize(), then create a Parser
-        // and call parse_statement().
-        todo!()
+        let mut lexer = Lexer::new(sql);
+        let tokens = lexer.tokenize().map_err(|e| ParseError {
+            message: e.message,
+            line: e.position.line,
+            column: e.position.column,
+        })?;
+        let mut parser = Parser::new(tokens);
+        parser.parse_statement()
     }
 
     /// Parse a single SQL statement from the current position.
@@ -135,15 +150,27 @@ impl Parser {
     // Pratt parsing helper: returns (left_binding_power, right_binding_power)
     // for infix binary operators. Higher BP = tighter binding.
     fn infix_binding_power(op: &BinaryOpAst) -> (u8, u8) {
-        // Hint: OR=1,2  AND=3,4  comparisons=5,6  add/sub=7,8  mul/div=9,10
-        // Left-associative ops have right BP = left BP + 1.
-        todo!()
+        match op {
+            BinaryOpAst::Or => (1, 2),
+            BinaryOpAst::And => (3, 4),
+            BinaryOpAst::Equal
+            | BinaryOpAst::NotEqual
+            | BinaryOpAst::LessThan
+            | BinaryOpAst::LessThanOrEqual
+            | BinaryOpAst::GreaterThan
+            | BinaryOpAst::GreaterThanOrEqual
+            | BinaryOpAst::Like => (5, 6),
+            BinaryOpAst::Add | BinaryOpAst::Subtract => (7, 8),
+            BinaryOpAst::Multiply | BinaryOpAst::Divide | BinaryOpAst::Modulo => (9, 10),
+        }
     }
 
     // Pratt parsing helper: returns the right binding power for prefix
     // unary operators.
     fn prefix_binding_power(op: &UnaryOpAst) -> u8 {
-        // Hint: NOT and Negate typically have high binding power (e.g., 11).
-        todo!()
+        match op {
+            UnaryOpAst::Not => 11,
+            UnaryOpAst::Negate => 11,
+        }
     }
 }

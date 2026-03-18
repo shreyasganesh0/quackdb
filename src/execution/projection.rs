@@ -1,8 +1,15 @@
-//! Lesson 15: Projection Operator
+//! # Lesson 15: Execution Operators — Projection (File 3 of 3)
 //!
-//! Projects (selects and/or computes) columns by evaluating a list of
-//! expressions against each input chunk. The output chunk contains one
-//! column per expression.
+//! This file implements the projection operator, which selects and/or computes
+//! output columns by evaluating a list of expressions against each input chunk.
+//!
+//! It works together with:
+//! - `scan.rs` — the table scan operator that produces base table data.
+//! - `filter.rs` — the filter operator that removes rows before projection.
+//!
+//! **Implementation order**: Implement `scan.rs` first, then `filter.rs`, then
+//! this file. Projection is the final reshaping step in a scan-filter-project
+//! pipeline.
 //!
 //! **Key idea:** For each input chunk, evaluate every expression in the
 //! projection list to produce one output vector per expression, then

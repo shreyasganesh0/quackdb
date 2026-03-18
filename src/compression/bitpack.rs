@@ -1,8 +1,16 @@
-//! Lesson 07: Bitpacking
+//! # Lesson 07: Compression — Bitpacking (File 1 of 2)
 //!
-//! Pack integers using the minimum number of bits required to represent the
-//! largest value. For example, if the maximum value in a column is 15, each
-//! value needs only 4 bits instead of the full 32.
+//! This file implements bitpacking: packing integers using the minimum number
+//! of bits required to represent the largest value. For example, if the maximum
+//! value in a column is 15, each value needs only 4 bits instead of the full 32.
+//!
+//! It works together with:
+//! - `delta.rs` — delta and frame-of-reference encoding, which produces small
+//!   integer deltas that are then bitpacked using functions from this file.
+//!
+//! **Start here**: Implement `bitpack.rs` first. The `delta.rs` file's combined
+//! `delta_bitpack_encode`/`decode` functions call into the bitpacking routines
+//! defined here, so having bitpacking working first makes delta easier to test.
 //!
 //! Key Rust concepts: bitwise operations (shift, mask, OR), working at the
 //! bit level across byte boundaries, and `u64::leading_zeros()`.
@@ -12,7 +20,10 @@
 /// Returns 0 for `max_value == 0`, 1 for 1, 2 for 2-3, 3 for 4-7, etc.
 // Hint: use `64 - max_value.leading_zeros()` (or handle 0 as a special case).
 pub fn bits_required(max_value: u64) -> u8 {
-    todo!()
+    if max_value == 0 {
+        return 0;
+    }
+    (64 - max_value.leading_zeros()) as u8
 }
 
 /// Pack a slice of `u32` values using `bit_width` bits per value.
@@ -48,5 +59,8 @@ pub fn unpack_u64(packed: &[u8], bit_width: u8, count: usize) -> Vec<u64> {
 ///
 /// Compares the original bit width per value to the packed bit width.
 pub fn compression_ratio(original_bits: u8, packed_bits: u8) -> f64 {
-    todo!()
+    if packed_bits == 0 {
+        return 0.0;
+    }
+    original_bits as f64 / packed_bits as f64
 }

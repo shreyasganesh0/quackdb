@@ -1,8 +1,19 @@
-//! Lesson 26: Column Statistics & Cardinality Estimation
+//! # Lesson 26: Query Optimization — Statistics & Cardinality (File 1 of 3)
 //!
-//! Maintains per-column statistics (min, max, distinct count, histograms) and
-//! uses them to estimate how many rows each plan node will produce. Accurate
-//! cardinality estimates are critical for the cost model and join ordering.
+//! This file implements column-level statistics (min, max, distinct count,
+//! histograms) and cardinality estimation. It estimates how many rows each plan
+//! node will produce, which is critical input for the cost model and join
+//! ordering.
+//!
+//! It works together with:
+//! - `cost_model.rs` — uses cardinality estimates from this file to assign
+//!   CPU/IO/network costs to each plan node.
+//! - `join_order.rs` — uses both statistics and the cost model to find the
+//!   optimal join order via dynamic programming.
+//!
+//! **Start here**: Implement `statistics.rs` first, then `cost_model.rs`, then
+//! `join_order.rs`. Each layer builds on the previous: statistics feed the cost
+//! model, and the cost model feeds the join order optimizer.
 
 use crate::types::LogicalType;
 use crate::planner::logical_plan::{LogicalPlan, LogicalExpr};
@@ -42,7 +53,14 @@ impl ColumnStatistics {
     /// All other fields should be initialised to sensible defaults (zero counts,
     /// `None` for min/max/histogram).
     pub fn new(total_count: u64) -> Self {
-        todo!()
+        Self {
+            distinct_count: 0,
+            null_count: 0,
+            min_value: None,
+            max_value: None,
+            total_count,
+            histogram: None,
+        }
     }
 
     /// Estimate selectivity for a comparison predicate (`op` is one of
@@ -61,8 +79,11 @@ impl ColumnStatistics {
     ///
     /// Returns a value in `[0.0, 1.0]`.
     pub fn equality_selectivity(&self) -> f64 {
-        // Hint: guard against distinct_count == 0 to avoid division by zero.
-        todo!()
+        if self.distinct_count == 0 {
+            1.0
+        } else {
+            1.0 / self.distinct_count as f64
+        }
     }
 }
 

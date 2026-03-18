@@ -72,8 +72,11 @@ pub struct AggregateState {
 impl AggregateState {
     /// Create a new default aggregate state.
     pub fn new() -> Self {
-        // Hint: initialize value to Null, count to 0, sum to 0.0.
-        todo!()
+        Self {
+            value: ScalarValue::Null,
+            count: 0,
+            sum: 0.0,
+        }
     }
 }
 
@@ -110,8 +113,12 @@ impl AggregateHashTable {
         agg_types: Vec<AggregateType>,
         agg_input_types: Vec<LogicalType>,
     ) -> Self {
-        // Hint: store the parameters; initialize groups as an empty HashMap.
-        todo!()
+        Self {
+            groups: HashMap::new(),
+            group_types,
+            agg_types,
+            agg_input_types,
+        }
     }
 
     /// Add a chunk of data to the hash table.
@@ -179,9 +186,27 @@ impl HashAggregateOperator {
         group_types: Vec<LogicalType>,
         agg_input_types: Vec<LogicalType>,
     ) -> Self {
-        // Hint: compute output_types as group_types ++ result types for
-        // each aggregate. Initialize hash_table to None (lazy creation).
-        todo!()
+        let mut output_types = group_types.clone();
+        for (agg_type, input_type) in agg_types.iter().zip(agg_input_types.iter()) {
+            let result_type = match agg_type {
+                AggregateType::Count | AggregateType::CountStar => LogicalType::Int64,
+                AggregateType::Sum => match input_type {
+                    LogicalType::Float32 | LogicalType::Float64 => LogicalType::Float64,
+                    _ => LogicalType::Int64,
+                },
+                AggregateType::Avg => LogicalType::Float64,
+                AggregateType::Min | AggregateType::Max => input_type.clone(),
+            };
+            output_types.push(result_type);
+        }
+        Self {
+            group_exprs,
+            agg_types,
+            agg_exprs,
+            hash_table: None,
+            output_types,
+            finalized: false,
+        }
     }
 }
 

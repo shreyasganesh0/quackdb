@@ -1,8 +1,17 @@
-//! Lesson 23: Binder
+//! # Lesson 23: Query Planning — Binder (File 2 of 2)
 //!
-//! Name resolution and type checking against the catalog. The binder walks
-//! the parsed AST, resolves table and column names using the [`Catalog`],
-//! checks type compatibility, and produces a fully-resolved [`LogicalPlan`].
+//! This file implements name resolution and type checking against the catalog.
+//! The binder walks the parsed AST, resolves table and column names using the
+//! [`Catalog`], checks type compatibility, and produces a fully-resolved
+//! [`LogicalPlan`].
+//!
+//! It works together with:
+//! - `catalog.rs` — the database catalog that this binder queries to look up
+//!   table schemas and resolve column names.
+//!
+//! **Implementation order**: Implement `catalog.rs` first, then this file.
+//! The binder calls `Catalog::get_table()` and `TableInfo::find_column()` to
+//! resolve names, so having the catalog ready simplifies testing.
 //!
 //! **Key idea:** Maintain a [`BindScope`] that tracks which columns are
 //! currently visible (from the FROM clause). As each AST node is visited,
@@ -50,11 +59,26 @@ impl BindScope {
     /// Returns the resolved column index and type, or an error if the
     /// column is not found or is ambiguous.
     pub fn resolve(&self, table: Option<&str>, column: &str) -> Result<(usize, LogicalType), BindError> {
-        // Hint: iterate over self.columns, filtering by table name if
-        // provided. If exactly one match is found, return its (index, type).
-        // If zero matches, return a "column not found" error.
-        // If multiple matches, return an "ambiguous column" error.
-        todo!()
+        let matches: Vec<_> = self.columns.iter()
+            .filter(|(tbl, col, _, _)| {
+                col == column && match table {
+                    Some(t) => tbl.as_deref() == Some(t),
+                    None => true,
+                }
+            })
+            .collect();
+        match matches.len() {
+            0 => Err(BindError {
+                message: format!("Column '{}' not found", column),
+            }),
+            1 => {
+                let (_, _, ty, idx) = matches[0];
+                Ok((*idx, ty.clone()))
+            }
+            _ => Err(BindError {
+                message: format!("Ambiguous column reference '{}'", column),
+            }),
+        }
     }
 }
 
@@ -123,8 +147,11 @@ impl<'a> Binder<'a> {
     /// Expand a wildcard (`SELECT *`) into explicit column references
     /// for all columns visible in the current scope.
     pub fn expand_wildcard(&self, scope: &BindScope) -> Vec<LogicalExpr> {
-        // Hint: iterate over scope.columns and create a
-        // LogicalExpr::ColumnRef for each one.
-        todo!()
+        scope.columns.iter().map(|(_, name, _, idx)| {
+            LogicalExpr::ColumnRef {
+                index: *idx,
+                name: name.clone(),
+            }
+        }).collect()
     }
 }

@@ -36,7 +36,12 @@ pub struct ColumnStats {
 impl ColumnStats {
     /// Create empty stats with no values observed yet.
     pub fn new() -> Self {
-        todo!()
+        Self {
+            null_count: 0,
+            min_value: None,
+            max_value: None,
+            distinct_count: None,
+        }
     }
 
     /// Update stats with a new observed value.
@@ -44,12 +49,44 @@ impl ColumnStats {
     /// Tracks min/max by byte-wise comparison and increments the null count
     /// when `is_null` is true.
     pub fn update(&mut self, value: &[u8], is_null: bool) {
-        todo!()
+        if is_null {
+            self.null_count += 1;
+            return;
+        }
+        let v = value.to_vec();
+        match &self.min_value {
+            None => self.min_value = Some(v.clone()),
+            Some(current) if v < *current => self.min_value = Some(v.clone()),
+            _ => {}
+        }
+        match &self.max_value {
+            None => self.max_value = Some(v),
+            Some(current) if v > *current => self.max_value = Some(v),
+            _ => {}
+        }
     }
 
     /// Merge another `ColumnStats` into this one (for combining row groups).
     pub fn merge(&mut self, other: &ColumnStats) {
-        todo!()
+        self.null_count += other.null_count;
+        if let Some(ref other_min) = other.min_value {
+            match &self.min_value {
+                None => self.min_value = Some(other_min.clone()),
+                Some(current) if other_min < current => {
+                    self.min_value = Some(other_min.clone())
+                }
+                _ => {}
+            }
+        }
+        if let Some(ref other_max) = other.max_value {
+            match &self.max_value {
+                None => self.max_value = Some(other_max.clone()),
+                Some(current) if other_max > current => {
+                    self.max_value = Some(other_max.clone())
+                }
+                _ => {}
+            }
+        }
     }
 }
 
@@ -136,7 +173,14 @@ impl<W: Write> ColumnarFileWriter<W> {
 
     /// Begin a new row group. Must be called before `write_column`.
     pub fn begin_row_group(&mut self) -> Result<(), String> {
-        todo!()
+        if self.current_row_group.is_some() {
+            return Err("A row group is already in progress".to_string());
+        }
+        self.current_row_group = Some(RowGroupInProgress {
+            num_rows: 0,
+            columns: Vec::new(),
+        });
+        Ok(())
     }
 
     /// Write a column chunk for the current row group.
@@ -148,7 +192,16 @@ impl<W: Write> ColumnarFileWriter<W> {
 
     /// End the current row group, recording its metadata.
     pub fn end_row_group(&mut self, num_rows: u64) -> Result<(), String> {
-        todo!()
+        let mut rg = self
+            .current_row_group
+            .take()
+            .ok_or_else(|| "No row group in progress".to_string())?;
+        rg.num_rows = num_rows;
+        self.row_groups.push(RowGroupMeta {
+            num_rows: rg.num_rows,
+            columns: rg.columns,
+        });
+        Ok(())
     }
 
     /// Convenience method: write an entire `DataChunk` as one row group.

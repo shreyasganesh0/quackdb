@@ -1,8 +1,18 @@
-//! Lesson 15: Table Scan Operator
+//! # Lesson 15: Execution Operators — Table Scan (File 1 of 3)
 //!
-//! Scans data from a [`DataSource`] with optional column pruning (projection
-//! pushdown). This is typically the leaf operator in an execution pipeline,
-//! responsible for reading base table data.
+//! This file implements the table scan operator, the leaf of every execution
+//! pipeline. It reads data from a [`DataSource`] with optional column pruning
+//! (projection pushdown).
+//!
+//! It works together with:
+//! - `filter.rs` — filters rows using a boolean predicate (sits above scan in
+//!   the pipeline).
+//! - `projection.rs` — selects/computes output columns from expressions (sits
+//!   above filter in the pipeline).
+//!
+//! **Start here**: Implement `scan.rs` first, then `filter.rs`, then
+//! `projection.rs`. This follows the data flow: scan produces chunks, filter
+//! removes rows, and projection reshapes columns.
 //!
 //! **Key idea:** If a `projection` is specified, only the listed column
 //! indices are materialized in the output chunk, reducing memory and CPU cost.

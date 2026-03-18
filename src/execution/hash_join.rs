@@ -53,8 +53,12 @@ pub struct JoinHashTable {
 impl JoinHashTable {
     /// Create a new empty join hash table.
     pub fn new(build_keys: Vec<usize>, build_types: Vec<LogicalType>) -> Self {
-        // Hint: initialize table and build_chunks as empty.
-        todo!()
+        Self {
+            table: HashMap::new(),
+            build_chunks: Vec::new(),
+            build_keys,
+            build_types,
+        }
     }
 
     /// Insert a chunk into the build side of the hash table.
@@ -88,8 +92,7 @@ impl JoinHashTable {
 
     /// Return the total number of rows in the build side.
     pub fn build_row_count(&self) -> usize {
-        // Hint: sum the row counts of all build_chunks.
-        todo!()
+        self.build_chunks.iter().map(|c| c.count()).sum()
     }
 }
 
@@ -126,17 +129,30 @@ impl HashJoinOperator {
         build_types: Vec<LogicalType>,
         probe_types: Vec<LogicalType>,
     ) -> Self {
-        // Hint: compute output_types based on join_type. For Semi/Anti,
-        // output only probe columns. For others, concatenate build + probe.
-        todo!()
+        let output_types = match join_type {
+            JoinType::Semi | JoinType::Anti => probe_types.clone(),
+            _ => {
+                let mut types = build_types.clone();
+                types.extend(probe_types.iter().cloned());
+                types
+            }
+        };
+        let hash_table = JoinHashTable::new(build_keys.clone(), build_types);
+        Self {
+            join_type,
+            build_keys,
+            probe_keys,
+            hash_table,
+            build_complete: false,
+            output_types,
+        }
     }
 
     /// Feed a build-side chunk into the hash table.
     ///
     /// Must be called before `finish_build`.
     pub fn add_build_chunk(&mut self, chunk: DataChunk) -> Result<(), String> {
-        // Hint: delegate to self.hash_table.build(chunk).
-        todo!()
+        self.hash_table.build(chunk)
     }
 
     /// Signal that the build phase is complete. After this call, `execute`

@@ -1,8 +1,17 @@
-//! Lesson 24: Physical Plan & Execution
+//! # Lesson 24: End-to-End Execution — Physical Plan Builder (File 1 of 2)
 //!
-//! Converts a [`LogicalPlan`] into physical execution pipelines. The physical
-//! plan builder maps each logical operator to a concrete [`PhysicalOperator`]
-//! and wires them into [`Pipeline`]s.
+//! This file converts a [`LogicalPlan`] into physical execution pipelines. The
+//! physical plan builder maps each logical operator to a concrete
+//! [`PhysicalOperator`] and wires them into [`Pipeline`]s.
+//!
+//! It works together with:
+//! - `db.rs` (in `src/`) — the top-level `Database` facade that calls into this
+//!   module to execute queries end-to-end (lex -> parse -> bind -> plan -> run).
+//!
+//! **Start here**: Implement `physical_plan.rs` first, then `db.rs`. The
+//! `Database::execute_sql` method in `db.rs` orchestrates the full pipeline and
+//! calls `execute_plan()` from this file, so having planning working first lets
+//! you test `db.rs` as a thin integration layer.
 //!
 //! **Key idea:** Walk the logical plan tree bottom-up. Leaf nodes (Scan)
 //! become data sources. Streaming operators (Filter, Projection) are added

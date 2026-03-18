@@ -1,8 +1,17 @@
-//! Lesson 33: Shuffle & Exchange Operators
+//! # Lesson 33: Distributed Execution — Shuffle & Data Movement (File 1 of 2)
 //!
-//! Data movement primitives for distributed execution. Provides channel-based
-//! communication (sender/receiver pairs), plus shuffle, broadcast, gather,
-//! and ordered-gather operators that route `DataChunk`s between plan fragments.
+//! This file implements the data movement primitives for distributed execution:
+//! channel-based communication (sender/receiver pairs), plus shuffle, broadcast,
+//! gather, and ordered-gather operators that route `DataChunk`s between plan
+//! fragments.
+//!
+//! It works together with:
+//! - `coordinator.rs` — the distributed executor that creates exchange channels
+//!   defined here, wires them between plan fragments, and spawns worker threads.
+//!
+//! **Start here**: Implement `shuffle.rs` first, then `coordinator.rs`. The
+//! coordinator uses `ExchangeChannel::new()` to create sender/receiver pairs
+//! and passes them to the operators defined in this file.
 
 use crate::chunk::DataChunk;
 use crate::types::LogicalType;
@@ -23,8 +32,11 @@ impl ExchangeChannel {
     ///
     /// Returns `(ExchangeSender, ExchangeReceiver)` connected by an mpsc channel.
     pub fn new() -> (ExchangeSender, ExchangeReceiver) {
-        // Hint: call `mpsc::channel()`, wrap each half.
-        todo!()
+        let (sender, receiver) = mpsc::channel();
+        (
+            ExchangeSender { sender },
+            ExchangeReceiver { receiver },
+        )
     }
 }
 
@@ -38,8 +50,7 @@ pub struct ExchangeSender {
 impl ExchangeSender {
     /// Send a data chunk to the receiver.
     pub fn send(&self, chunk: DataChunk) -> Result<(), String> {
-        // Hint: wrap the chunk in Some(...) and send via the mpsc sender.
-        todo!()
+        self.sender.send(Some(chunk)).map_err(|e| e.to_string())
     }
 
     /// Signal end-of-stream by sending `None`, then drop the sender.
@@ -58,9 +69,10 @@ pub struct ExchangeReceiver {
 impl ExchangeReceiver {
     /// Receive the next chunk, or `None` if the stream is finished.
     pub fn recv(&self) -> Option<DataChunk> {
-        // Hint: call `self.receiver.recv()`. If Ok(Some(chunk)) return it;
-        // if Ok(None) or Err (sender dropped), return None.
-        todo!()
+        match self.receiver.recv() {
+            Ok(Some(chunk)) => Some(chunk),
+            Ok(None) | Err(_) => None,
+        }
     }
 }
 
@@ -94,8 +106,7 @@ pub struct GatherOperator {
 impl GatherOperator {
     /// Create a gather operator from a set of receivers.
     pub fn new(receivers: Vec<ExchangeReceiver>, output_types: Vec<LogicalType>) -> Self {
-        // Hint: initialise `current` to 0.
-        todo!()
+        Self { receivers, output_types, current: 0 }
     }
 
     /// Pull the next available chunk from any receiver.
@@ -124,8 +135,10 @@ impl BroadcastOperator {
 
     /// Clone and send the chunk to every receiver.
     pub fn broadcast(&self, chunk: &DataChunk) -> Result<(), String> {
-        // Hint: clone the chunk for each sender (the last one can move).
-        todo!()
+        for sender in &self.senders {
+            sender.send(chunk.clone())?;
+        }
+        Ok(())
     }
 }
 

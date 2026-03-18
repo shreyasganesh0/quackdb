@@ -1,11 +1,17 @@
-//! Lesson 07: Delta Encoding
+//! # Lesson 07: Compression — Delta Encoding (File 2 of 2)
 //!
-//! Store differences between consecutive values instead of the values themselves.
-//! Highly effective for sorted or sequential data (e.g., timestamps, auto-increment
-//! IDs) where deltas are small and can be further compressed with bitpacking.
+//! This file implements delta encoding and frame-of-reference (FOR) encoding.
+//! Delta encoding stores differences between consecutive values instead of the
+//! values themselves. FOR encoding stores values as unsigned offsets from the
+//! column minimum. Both produce small integers ideal for bitpacking.
 //!
-//! Also includes Frame-of-Reference (FOR) encoding, which stores values as
-//! unsigned offsets from the column minimum.
+//! It works together with:
+//! - `bitpack.rs` — low-level bitpacking routines that this file's combined
+//!   `delta_bitpack_encode`/`decode` functions depend on.
+//!
+//! **Implementation order**: Implement `bitpack.rs` first, then this file.
+//! The standalone `encode`/`decode` and `frame_of_reference_*` functions here
+//! are self-contained, but `delta_bitpack_encode`/`decode` call into `bitpack.rs`.
 //!
 //! Key Rust concepts: iterator `windows()` for pairwise access, `i64`/`u64`
 //! conversions, and combining encodings (delta + bitpack).

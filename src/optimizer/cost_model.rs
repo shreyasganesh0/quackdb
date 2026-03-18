@@ -1,8 +1,18 @@
-//! Lesson 26: Cost Model
+//! # Lesson 26: Query Optimization — Cost Model (File 2 of 3)
 //!
-//! Assigns a multi-dimensional cost (CPU, I/O, network) to each plan node.
-//! The optimizer uses these costs to choose between alternative plans, e.g.,
-//! hash join vs. merge join or different join orderings.
+//! This file implements the cost model, which assigns a multi-dimensional cost
+//! (CPU, I/O, network) to each plan node. The optimizer uses these costs to
+//! choose between alternative plans (e.g., hash join vs. merge join).
+//!
+//! It works together with:
+//! - `statistics.rs` — provides cardinality estimates (row counts) that this
+//!   cost model uses to compute per-operator costs.
+//! - `join_order.rs` — calls `CostModel::estimate()` and operator-specific cost
+//!   functions to evaluate candidate join orderings.
+//!
+//! **Implementation order**: Implement `statistics.rs` first, then this file,
+//! then `join_order.rs`. The cost model depends on cardinality estimates from
+//! statistics, and the join order optimizer depends on both.
 
 use crate::planner::logical_plan::LogicalPlan;
 use super::statistics::TableStatistics;
@@ -63,26 +73,42 @@ impl CostModel {
     ///
     /// CPU cost ~ `build_rows` (build) + `probe_rows` (probe).
     pub fn hash_join_cost(build_rows: u64, probe_rows: u64) -> Cost {
-        todo!()
+        Cost {
+            cpu: build_rows as f64 + probe_rows as f64,
+            io: 0.0,
+            network: 0.0,
+        }
     }
 
     /// Cost of a merge join where both inputs are already sorted.
     ///
     /// CPU cost ~ `left_rows + right_rows` (single pass over both).
     pub fn merge_join_cost(left_rows: u64, right_rows: u64) -> Cost {
-        todo!()
+        Cost {
+            cpu: left_rows as f64 + right_rows as f64,
+            io: 0.0,
+            network: 0.0,
+        }
     }
 
     /// Cost of a sequential table scan.
     ///
     /// Dominated by I/O; CPU cost is linear in `rows`.
     pub fn scan_cost(rows: u64) -> Cost {
-        todo!()
+        Cost {
+            cpu: rows as f64,
+            io: rows as f64,
+            network: 0.0,
+        }
     }
 
     /// Cost of an in-memory sort (O(n log n) CPU).
     pub fn sort_cost(rows: u64) -> Cost {
-        // Hint: cpu ~ rows * (rows as f64).log2()
-        todo!()
+        let n = rows as f64;
+        Cost {
+            cpu: if rows > 0 { n * n.log2() } else { 0.0 },
+            io: 0.0,
+            network: 0.0,
+        }
     }
 }

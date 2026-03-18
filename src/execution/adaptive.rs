@@ -44,10 +44,19 @@ impl BloomFilter {
     ///
     /// Computes optimal `num_bits` and `num_hashes` from the parameters.
     pub fn new(expected_items: usize, false_positive_rate: f64) -> Self {
-        // Hint: num_bits = -(n * ln(p)) / (ln2)^2
-        //       num_hashes = (num_bits / n) * ln2
-        // Round up num_bits to a multiple of 64 for word alignment.
-        todo!()
+        let n = expected_items.max(1) as f64;
+        let ln2 = std::f64::consts::LN_2;
+        let num_bits_raw = -(n * false_positive_rate.ln()) / (ln2 * ln2);
+        // Round up to multiple of 64
+        let num_bits = ((num_bits_raw as usize + 63) / 64) * 64;
+        let num_bits = num_bits.max(64);
+        let num_hashes = ((num_bits as f64 / n) * ln2).ceil() as usize;
+        let num_hashes = num_hashes.max(1);
+        Self {
+            bits: vec![0u64; num_bits / 64],
+            num_bits,
+            num_hashes,
+        }
     }
 
     /// Insert a value (as raw bytes) into the filter.
@@ -73,7 +82,16 @@ impl BloomFilter {
     /// A common approach: use double hashing -- `h(value, seed) = h1 + seed * h2`
     /// where h1 and h2 are two independent hash functions.
     fn hash(&self, value: &[u8], seed: usize) -> usize {
-        todo!()
+        // Double hashing: h(value, seed) = h1 + seed * h2
+        let mut h1: u64 = 0xcbf29ce484222325;
+        let mut h2: u64 = 0x517cc1b727220a95;
+        for &b in value {
+            h1 ^= b as u64;
+            h1 = h1.wrapping_mul(0x100000001b3);
+            h2 ^= b as u64;
+            h2 = h2.wrapping_mul(0x00000100000001B3);
+        }
+        (h1.wrapping_add((seed as u64).wrapping_mul(h2)) % self.num_bits as u64) as usize
     }
 }
 
@@ -97,8 +115,13 @@ pub struct AdaptiveJoinOperator {
 impl AdaptiveJoinOperator {
     /// Create an adaptive join with the given output schema and switch threshold.
     pub fn new(output_types: Vec<LogicalType>, threshold: usize) -> Self {
-        // Hint: initialise build_count to 0, bloom_filter to None, stats to Default.
-        todo!()
+        Self {
+            output_types,
+            build_count: 0,
+            threshold,
+            bloom_filter: None,
+            stats: RuntimeStatistics::default(),
+        }
     }
 
     /// Access the Bloom filter (available after the build phase completes).
@@ -143,8 +166,11 @@ pub struct AdaptiveParallelism {
 impl AdaptiveParallelism {
     /// Create an adaptive parallelism controller with the given bounds.
     pub fn new(min_workers: usize, max_workers: usize) -> Self {
-        // Hint: start with `min_workers` as the initial count.
-        todo!()
+        Self {
+            min_workers,
+            max_workers,
+            current_workers: min_workers,
+        }
     }
 
     /// Adjust the worker count based on observed throughput.

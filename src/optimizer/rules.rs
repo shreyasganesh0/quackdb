@@ -87,9 +87,18 @@ impl OptimizerRule for LimitPushdown {
 /// Each iteration applies every rule in order. If no rule changes the plan
 /// during an iteration, the loop terminates early.
 pub fn optimize(plan: LogicalPlan, rules: &[Box<dyn OptimizerRule>], max_iterations: usize) -> Result<LogicalPlan, String> {
-    // Hint: compare the plan before and after each iteration (e.g., via Debug)
-    // to detect fixpoint convergence.
-    todo!()
+    let mut current = plan;
+    for _ in 0..max_iterations {
+        let before = format!("{:?}", current);
+        for rule in rules {
+            current = rule.apply(current)?;
+        }
+        let after = format!("{:?}", current);
+        if before == after {
+            break;
+        }
+    }
+    Ok(current)
 }
 
 /// Returns the default set of optimization rules in recommended application order.
@@ -97,5 +106,11 @@ pub fn optimize(plan: LogicalPlan, rules: &[Box<dyn OptimizerRule>], max_iterati
 /// Typical ordering: constant folding, filter merge, predicate pushdown,
 /// projection pushdown, limit pushdown.
 pub fn default_rules() -> Vec<Box<dyn OptimizerRule>> {
-    todo!()
+    vec![
+        Box::new(ConstantFolding),
+        Box::new(FilterMerge),
+        Box::new(PredicatePushdown),
+        Box::new(ProjectionPushdown),
+        Box::new(LimitPushdown),
+    ]
 }

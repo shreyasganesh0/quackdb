@@ -1,9 +1,18 @@
-//! Lesson 33: Distributed Executor Coordinator
+//! # Lesson 33: Distributed Execution — Coordinator (File 2 of 2)
 //!
-//! The coordinator receives a distributed plan (a set of `PlanFragment`s),
-//! sets up exchange channels between fragments, spawns worker threads, and
-//! collects the final results. This is the top-level entry point for
-//! distributed query execution.
+//! This file implements the distributed executor coordinator, the top-level
+//! entry point for distributed query execution. It receives a set of
+//! `PlanFragment`s, sets up exchange channels between them, spawns worker
+//! threads, and collects the final results.
+//!
+//! It works together with:
+//! - `shuffle.rs` — provides `ExchangeChannel`, `ExchangeSender`,
+//!   `ExchangeReceiver`, and data movement operators (shuffle, broadcast,
+//!   gather) that the coordinator wires between fragments.
+//!
+//! **Implementation order**: Implement `shuffle.rs` first, then this file.
+//! The coordinator's `execute` method calls `ExchangeChannel::new()` and
+//! passes senders/receivers to the operators defined in `shuffle.rs`.
 
 use super::planner::PlanFragment;
 use super::shuffle::{ExchangeChannel, ExchangeSender, ExchangeReceiver};

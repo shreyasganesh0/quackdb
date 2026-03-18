@@ -1,9 +1,18 @@
-//! Lesson 21: Abstract Syntax Tree
+//! # Lesson 21: SQL Frontend — Abstract Syntax Tree (File 2 of 2)
 //!
-//! AST nodes for parsed SQL statements. This module defines the tree
-//! structure that the parser produces and the binder consumes. Each node
-//! closely mirrors SQL syntax without any semantic analysis (no type
-//! checking, no name resolution).
+//! This file defines the AST node types for parsed SQL statements. These are
+//! the data structures that the parser produces and the binder (Lesson 23)
+//! consumes. Each node closely mirrors SQL syntax without any semantic
+//! analysis (no type checking, no name resolution).
+//!
+//! It works together with:
+//! - `parser.rs` — the recursive descent parser that constructs these AST nodes
+//!   from a token stream.
+//!
+//! **Implementation order**: Read this file first to understand the target data
+//! structures, then implement `parser.rs`. This file is mostly type definitions
+//! with no `todo!()` calls (no logic to implement), but understanding the shape
+//! of the AST is essential before writing the parser.
 
 use crate::types::LogicalType;
 

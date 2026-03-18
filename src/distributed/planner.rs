@@ -1,8 +1,18 @@
-//! Lesson 32: Distributed Query Planning
+//! # Lesson 32: Distributed Execution — Query Planner (File 1 of 2)
 //!
-//! Transforms a single-node logical plan into a set of plan fragments
-//! connected by exchange operators. Each fragment runs on a separate node;
-//! exchanges handle data movement (shuffle, broadcast, gather) between nodes.
+//! This file implements distributed query planning: transforming a single-node
+//! logical plan into a set of `PlanFragment`s connected by exchange operators.
+//! Each fragment runs on a separate node; exchanges handle data movement
+//! (shuffle, broadcast, gather) between nodes.
+//!
+//! It works together with:
+//! - `execution/exchange.rs` — the physical `ExchangeOperator` that acts as a
+//!   pipeline boundary for data redistribution between fragments.
+//!
+//! **Start here**: Implement `planner.rs` first, then `exchange.rs`. The
+//! planner decides *where* exchanges are needed and *what type* (gather,
+//! repartition, broadcast); the exchange operator is the runtime component
+//! that executes the data transfer.
 
 use crate::planner::logical_plan::LogicalPlan;
 
@@ -80,8 +90,15 @@ impl FragmentBuilder {
 
     /// Add a fragment and return its assigned ID.
     pub fn add_fragment(&mut self, plan: LogicalPlan, exchange_in: Option<ExchangeType>, exchange_out: Option<ExchangeType>) -> usize {
-        // Hint: create a PlanFragment with `next_id`, push it, increment next_id.
-        todo!()
+        let id = self.next_id;
+        self.fragments.push(PlanFragment {
+            plan,
+            fragment_id: id,
+            exchange_input: exchange_in,
+            exchange_output: exchange_out,
+        });
+        self.next_id += 1;
+        id
     }
 
     /// Consume the builder and return all fragments.

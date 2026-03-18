@@ -93,7 +93,18 @@ impl Page {
     /// Create a new empty page with the given page size.
     // Hint: allocate `page_size - PageHeader::SIZE` bytes for the data region.
     pub fn new(page_id: u32, page_type: PageType, page_size: usize) -> Self {
-        todo!()
+        let data_size = page_size - PageHeader::SIZE;
+        Self {
+            header: PageHeader {
+                page_type,
+                page_id,
+                checksum: 0,
+                free_space: data_size as u16,
+                num_records: 0,
+            },
+            data: vec![0u8; data_size],
+            page_size,
+        }
     }
 
     /// Create a new page with the default size (8 KB).
@@ -105,19 +116,36 @@ impl Page {
     ///
     /// Returns an error if the write would exceed the data region.
     pub fn write_data(&mut self, offset: usize, data: &[u8]) -> Result<(), String> {
-        todo!()
+        if offset + data.len() > self.data.len() {
+            return Err(format!(
+                "write exceeds page data region: offset {} + len {} > {}",
+                offset,
+                data.len(),
+                self.data.len()
+            ));
+        }
+        self.data[offset..offset + data.len()].copy_from_slice(data);
+        Ok(())
     }
 
     /// Read data from the page at the given byte offset.
     ///
     /// Returns a slice of `length` bytes, or an error if out of bounds.
     pub fn read_data(&self, offset: usize, length: usize) -> Result<&[u8], String> {
-        todo!()
+        if offset + length > self.data.len() {
+            return Err(format!(
+                "read exceeds page data region: offset {} + len {} > {}",
+                offset,
+                length,
+                self.data.len()
+            ));
+        }
+        Ok(&self.data[offset..offset + length])
     }
 
     /// Get the amount of free space in the page's data region.
     pub fn free_space(&self) -> usize {
-        todo!()
+        self.header.free_space as usize
     }
 
     /// Compute the CRC32 checksum of the page data region.
@@ -128,12 +156,12 @@ impl Page {
 
     /// Recompute and store the checksum in the header.
     pub fn update_checksum(&mut self) {
-        todo!()
+        self.header.checksum = self.compute_checksum();
     }
 
     /// Verify the stored checksum matches a fresh computation.
     pub fn verify_checksum(&self) -> bool {
-        todo!()
+        self.header.checksum == self.compute_checksum()
     }
 
     /// Serialize the entire page (header + data) to bytes.
@@ -165,23 +193,40 @@ pub struct PageBuilder {
 impl PageBuilder {
     /// Create a new page builder with an empty page.
     pub fn new(page_id: u32, page_type: PageType, page_size: usize) -> Self {
-        todo!()
+        Self {
+            page: Page::new(page_id, page_type, page_size),
+            write_offset: 0,
+        }
     }
 
     /// Append data to the page. Returns the offset where data was written.
     ///
     /// Returns an error if there is not enough remaining space.
     pub fn append(&mut self, data: &[u8]) -> Result<usize, String> {
-        todo!()
+        if data.len() > self.remaining() {
+            return Err(format!(
+                "not enough space: need {} bytes, have {}",
+                data.len(),
+                self.remaining()
+            ));
+        }
+        let offset = self.write_offset;
+        self.page.write_data(offset, data)?;
+        self.write_offset += data.len();
+        self.page.header.free_space -= data.len() as u16;
+        self.page.header.num_records += 1;
+        Ok(offset)
     }
 
     /// Remaining writable space in the page.
     pub fn remaining(&self) -> usize {
-        todo!()
+        self.page.data.len() - self.write_offset
     }
 
     /// Finalize the page, computing its checksum and returning the `Page`.
     pub fn finish(self) -> Page {
-        todo!()
+        let mut page = self.page;
+        page.update_checksum();
+        page
     }
 }

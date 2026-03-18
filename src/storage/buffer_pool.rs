@@ -39,7 +39,11 @@ pub struct FileDiskManager {
 impl FileDiskManager {
     /// Create or open a file-backed disk manager at the given path.
     pub fn new(path: impl Into<std::path::PathBuf>, page_size: usize) -> Self {
-        todo!()
+        Self {
+            path: path.into(),
+            page_size,
+            next_page_id: 0,
+        }
     }
 }
 
@@ -54,7 +58,9 @@ impl DiskManager for FileDiskManager {
     }
 
     fn allocate_page(&mut self) -> PageId {
-        todo!()
+        let id = self.next_page_id;
+        self.next_page_id += 1;
+        id
     }
 }
 
@@ -70,7 +76,11 @@ pub struct InMemoryDiskManager {
 impl InMemoryDiskManager {
     /// Create a new in-memory disk manager with the given page size.
     pub fn new(page_size: usize) -> Self {
-        todo!()
+        Self {
+            pages: HashMap::new(),
+            next_page_id: 0,
+            page_size,
+        }
     }
 }
 
@@ -84,7 +94,9 @@ impl DiskManager for InMemoryDiskManager {
     }
 
     fn allocate_page(&mut self) -> PageId {
-        todo!()
+        let id = self.next_page_id;
+        self.next_page_id += 1;
+        id
     }
 }
 
@@ -119,7 +131,20 @@ impl<D: DiskManager> BufferPool<D> {
     /// Create a new buffer pool with the given capacity (number of frames).
     // Hint: initialize `frames` and `metadata` as Vec of `None` with length `capacity`.
     pub fn new(disk_manager: D, capacity: usize) -> Self {
-        todo!()
+        let mut frames = Vec::with_capacity(capacity);
+        let mut metadata = Vec::with_capacity(capacity);
+        for _ in 0..capacity {
+            frames.push(None);
+            metadata.push(None);
+        }
+        Self {
+            disk_manager,
+            frames,
+            metadata,
+            page_table: HashMap::new(),
+            capacity,
+            lru_list: Vec::new(),
+        }
     }
 
     /// Fetch a page by ID, loading it from disk if not already in the pool.
@@ -159,7 +184,11 @@ impl<D: DiskManager> BufferPool<D> {
 
     /// Flush all dirty pages to disk.
     pub fn flush_all(&mut self) -> Result<(), String> {
-        todo!()
+        let page_ids: Vec<PageId> = self.page_table.keys().copied().collect();
+        for page_id in page_ids {
+            self.flush_page(page_id)?;
+        }
+        Ok(())
     }
 
     /// Number of pages currently in the pool.

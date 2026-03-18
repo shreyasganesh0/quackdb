@@ -50,8 +50,11 @@ impl Partitioner {
 
     /// Total number of partitions produced by this scheme.
     pub fn num_partitions(&self) -> usize {
-        // Hint: match on the scheme variant to extract the partition count.
-        todo!()
+        match &self.scheme {
+            PartitionScheme::Hash { num_partitions, .. } => *num_partitions,
+            PartitionScheme::Range { boundaries, .. } => boundaries.len() + 1,
+            PartitionScheme::RoundRobin { num_partitions } => *num_partitions,
+        }
     }
 }
 
@@ -67,8 +70,14 @@ pub struct PartitionedTable {
 impl PartitionedTable {
     /// Create a new partitioned table with empty partitions.
     pub fn new(name: String, schema: Vec<(String, LogicalType)>, scheme: PartitionScheme) -> Self {
-        // Hint: initialise `partitions` with `num_partitions` empty Vecs.
-        todo!()
+        let partitioner = Partitioner::new(scheme.clone());
+        let num = partitioner.num_partitions();
+        Self {
+            name,
+            schema,
+            scheme,
+            partitions: (0..num).map(|_| Vec::new()).collect(),
+        }
     }
 
     /// Insert a chunk, routing each row to the correct partition.
@@ -78,7 +87,7 @@ impl PartitionedTable {
 
     /// Scan all partitions, returning chunks in partition order.
     pub fn scan_all(&self) -> Vec<DataChunk> {
-        todo!()
+        self.partitions.iter().flat_map(|p| p.iter().cloned()).collect()
     }
 
     /// Scan a single partition by ID.
@@ -86,7 +95,7 @@ impl PartitionedTable {
     /// # Panics
     /// Panics if `partition_id >= num_partitions()`.
     pub fn scan_partition(&self, partition_id: usize) -> &[DataChunk] {
-        todo!()
+        &self.partitions[partition_id]
     }
 
     /// Number of partitions in this table.

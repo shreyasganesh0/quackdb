@@ -1,8 +1,18 @@
-//! Lesson 32: Exchange Operators
+//! # Lesson 32: Distributed Execution — Exchange Operator (File 2 of 2)
 //!
-//! Provides a physical operator that represents a data exchange boundary in
-//! a distributed or parallel query plan. Exchange operators decouple pipeline
-//! segments, enabling data redistribution between execution threads or nodes.
+//! This file provides the physical `ExchangeOperator`, which represents a data
+//! exchange boundary in a distributed or parallel query plan. Exchange operators
+//! decouple pipeline segments, enabling data redistribution between execution
+//! threads or nodes.
+//!
+//! It works together with:
+//! - `distributed/planner.rs` — the distributed query planner that decides
+//!   where to insert exchange boundaries and what type of exchange to use.
+//!
+//! **Implementation order**: Implement `distributed/planner.rs` first, then
+//! this file. The planner produces `PlanFragment`s with `ExchangeType`
+//! annotations; this operator is the runtime component that executes data
+//! transfer at those boundaries.
 
 use crate::chunk::DataChunk;
 use crate::types::LogicalType;
@@ -32,9 +42,7 @@ impl PhysicalOperator for ExchangeOperator {
     }
 
     fn execute(&mut self, input: &DataChunk) -> Result<OperatorResult, String> {
-        // Hint: for a local pass-through, wrap the input chunk in
-        // OperatorResult::Output. For distributed, pull from a channel.
-        todo!()
+        Ok(OperatorResult::Output(input.clone()))
     }
 
     fn name(&self) -> &str {

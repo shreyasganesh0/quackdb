@@ -23,12 +23,19 @@ pub struct Arena {
 impl Arena {
     /// Create a new arena with the default block size (4096 bytes).
     pub fn new() -> Self {
-        todo!()
+        Self::with_block_size(DEFAULT_BLOCK_SIZE)
     }
 
     /// Create a new arena with a custom block size.
     pub fn with_block_size(block_size: usize) -> Self {
-        todo!()
+        let mut blocks = Vec::new();
+        blocks.push(vec![0u8; block_size]);
+        Self {
+            blocks,
+            current_offset: 0,
+            block_size,
+            total_allocated: 0,
+        }
     }
 
     /// Allocate `size` bytes with the given `align`ment from the arena.
@@ -64,7 +71,8 @@ impl Arena {
     /// After reset, all previous allocations are invalidated. The backing
     /// `Vec<u8>` blocks are retained so future allocations avoid re-allocating.
     pub fn reset(&mut self) {
-        todo!()
+        self.current_offset = 0;
+        self.total_allocated = 0;
     }
 
     /// Total bytes allocated from this arena.
@@ -134,17 +142,23 @@ impl<'a> ScopedArena<'a> {
     /// Captures the parent's current allocation position so it can be
     /// restored later via `reset`.
     pub fn new(parent: &'a mut Arena) -> Self {
-        todo!()
+        let start_block = parent.blocks.len().saturating_sub(1);
+        let start_offset = parent.current_offset;
+        Self {
+            parent,
+            start_block,
+            start_offset,
+        }
     }
 
     /// Allocate bytes within this scope. Delegates to the parent arena.
     pub fn alloc(&mut self, size: usize, align: usize) -> &mut [u8] {
-        todo!()
+        self.parent.alloc(size, align)
     }
 
     /// Allocate and copy a string into the scoped arena.
     pub fn alloc_string(&mut self, s: &str) -> ArenaString {
-        todo!()
+        self.parent.alloc_string(s)
     }
 
     /// Reset the scope, freeing all allocations made within it.
@@ -152,6 +166,8 @@ impl<'a> ScopedArena<'a> {
     /// Restores the parent arena's offset to where it was when this scope
     /// was created.
     pub fn reset(&mut self) {
-        todo!()
+        // Truncate any blocks allocated after the scope started
+        self.parent.blocks.truncate(self.start_block + 1);
+        self.parent.current_offset = self.start_offset;
     }
 }

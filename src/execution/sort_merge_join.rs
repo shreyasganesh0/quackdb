@@ -81,8 +81,7 @@ impl RowComparator {
         row_a: usize,
         row_b: usize,
     ) -> Ordering {
-        // Hint: delegate to self.compare(chunk, row_a, chunk, row_b).
-        todo!()
+        self.compare(chunk, row_a, chunk, row_b)
     }
 }
 
@@ -142,9 +141,18 @@ impl MergeJoinOperator {
         left_types: Vec<LogicalType>,
         right_types: Vec<LogicalType>,
     ) -> Self {
-        // Hint: compute output_types as left_types ++ right_types.
-        // Initialize buffers and positions.
-        todo!()
+        let mut output_types = left_types;
+        output_types.extend(right_types);
+        Self {
+            join_type,
+            left_keys,
+            right_keys,
+            output_types,
+            left_buffer: Vec::new(),
+            right_buffer: Vec::new(),
+            left_pos: 0,
+            right_pos: 0,
+        }
     }
 
     /// Add a sorted chunk from the left input.

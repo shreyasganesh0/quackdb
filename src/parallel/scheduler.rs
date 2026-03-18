@@ -1,8 +1,16 @@
-//! Lesson 29: Parallel Pipeline Scheduler
+//! # Lesson 29: Parallel Execution — Scheduler (File 2 of 2)
 //!
-//! Spawns N worker threads that each pull morsels from a shared queue, apply
-//! a pipeline of physical operators, and push results to a shared collector.
-//! This is the top-level coordinator for morsel-driven parallelism.
+//! This file implements the parallel pipeline scheduler, which spawns N worker
+//! threads that each pull morsels from a shared `MorselQueue`, apply a pipeline
+//! of physical operators, and push results to a shared `ParallelCollector`.
+//!
+//! It works together with:
+//! - `morsel.rs` — provides the `MorselQueue` and `ParallelCollector` data
+//!   structures that the scheduler's worker threads interact with.
+//!
+//! **Implementation order**: Implement `morsel.rs` first, then this file.
+//! The scheduler's `execute` method calls `MorselQueue::take()` in a loop and
+//! `ParallelCollector::push()` for each result, so those must be working first.
 
 use super::morsel::{MorselQueue, ParallelCollector};
 use crate::chunk::DataChunk;
@@ -69,8 +77,7 @@ impl PartitionedHashTable {
 
     /// Map a hash value to a partition index using modular arithmetic.
     pub fn partition_for_hash(&self, hash: u64) -> usize {
-        // Hint: `hash as usize % self.num_partitions`
-        todo!()
+        hash as usize % self.num_partitions
     }
 
     /// Merge all per-partition tables and produce the final aggregated result chunks.

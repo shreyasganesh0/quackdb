@@ -70,7 +70,7 @@ pub struct WalWriter<W: Write> {
 impl<W: Write> WalWriter<W> {
     /// Create a new writer starting at LSN 0.
     pub fn new(writer: W) -> Self {
-        todo!()
+        Self { writer, next_lsn: 0 }
     }
 
     /// Append a record to the WAL and return its assigned LSN.
@@ -86,7 +86,7 @@ impl<W: Write> WalWriter<W> {
     ///
     /// Must be called after a Commit record to guarantee durability.
     pub fn flush(&mut self) -> Result<(), String> {
-        todo!()
+        self.writer.flush().map_err(|e| e.to_string())
     }
 }
 
@@ -113,7 +113,13 @@ impl<R: Read> WalReader<R> {
 
     /// Read all remaining entries into a vector.
     pub fn read_all(&mut self) -> Result<Vec<WalEntry>, String> {
-        todo!()
+        let mut entries = Vec::new();
+        loop {
+            match self.next()? {
+                Some(entry) => entries.push(entry),
+                None => return Ok(entries),
+            }
+        }
     }
 }
 

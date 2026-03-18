@@ -1,9 +1,18 @@
-//! Lesson 29: Morsel-Driven Parallelism
+//! # Lesson 29: Parallel Execution — Morsel Queue (File 1 of 2)
 //!
-//! Implements the morsel-driven execution model where data is split into
-//! fixed-size chunks ("morsels") and distributed to worker threads on demand.
-//! This achieves dynamic load balancing without static partitioning: fast
-//! workers simply grab more morsels.
+//! This file implements the morsel-driven data structures: `MorselQueue` (a
+//! thread-safe queue of data chunks) and `ParallelCollector` (a thread-safe
+//! result aggregator). Morsels are fixed-size chunks distributed to worker
+//! threads on demand, achieving dynamic load balancing.
+//!
+//! It works together with:
+//! - `scheduler.rs` — the parallel pipeline scheduler that spawns worker threads,
+//!   pulls morsels from the `MorselQueue`, and pushes results to the
+//!   `ParallelCollector`.
+//!
+//! **Start here**: Implement `morsel.rs` first, then `scheduler.rs`. The
+//! scheduler depends on `MorselQueue::take()` and `ParallelCollector::push()`
+//! to drive the parallel execution loop.
 
 use crate::chunk::DataChunk;
 use crate::types::LogicalType;
@@ -33,22 +42,29 @@ impl MorselQueue {
     ///
     /// Assigns sequential `morsel_id` values starting at 0.
     pub fn new(chunks: Vec<DataChunk>) -> Self {
-        todo!()
+        let total_morsels = chunks.len();
+        let morsels = chunks
+            .into_iter()
+            .enumerate()
+            .map(|(i, chunk)| Morsel { chunk, morsel_id: i })
+            .collect();
+        Self {
+            morsels: Mutex::new(morsels),
+            total_morsels,
+        }
     }
 
     /// Take the next available morsel (FIFO). Returns `None` when the queue is empty.
     ///
     /// This is the hot path called by every worker thread.
     pub fn take(&self) -> Option<Morsel> {
-        // Hint: lock the mutex, pop from the vec. `Vec::pop` removes from
-        // the back; if you want FIFO order, reverse before storing or use
-        // `Vec::remove(0)` (but pop is O(1) and fine in practice).
-        todo!()
+        let mut morsels = self.morsels.lock().unwrap();
+        morsels.pop()
     }
 
     /// Number of morsels remaining in the queue.
     pub fn remaining(&self) -> usize {
-        todo!()
+        self.morsels.lock().unwrap().len()
     }
 
     /// Total number of morsels originally enqueued.
@@ -74,8 +90,7 @@ impl ParallelCollector {
 
     /// Push a result chunk (called by worker threads).
     pub fn push(&self, chunk: DataChunk) {
-        // Hint: lock, then push.
-        todo!()
+        self.results.lock().unwrap().push(chunk);
     }
 
     /// Consume the collector and return all collected result chunks.

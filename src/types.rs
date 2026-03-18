@@ -58,7 +58,24 @@ impl LogicalType {
     // Hint: a straightforward `match` on `self`. Decimal maps to
     // `FixedSize(16)` (i128); Blob and Varchar map to `PhysicalType::Varchar`.
     pub fn physical_type(&self) -> PhysicalType {
-        todo!()
+        match self {
+            LogicalType::Boolean => PhysicalType::Bool,
+            LogicalType::Int8 => PhysicalType::Int8,
+            LogicalType::Int16 => PhysicalType::Int16,
+            LogicalType::Int32 => PhysicalType::Int32,
+            LogicalType::Int64 => PhysicalType::Int64,
+            LogicalType::UInt8 => PhysicalType::Int8,
+            LogicalType::UInt16 => PhysicalType::Int16,
+            LogicalType::UInt32 => PhysicalType::Int32,
+            LogicalType::UInt64 => PhysicalType::Int64,
+            LogicalType::Float32 => PhysicalType::Float32,
+            LogicalType::Float64 => PhysicalType::Float64,
+            LogicalType::Varchar => PhysicalType::Varchar,
+            LogicalType::Date => PhysicalType::Int32,
+            LogicalType::Timestamp => PhysicalType::Int64,
+            LogicalType::Decimal { .. } => PhysicalType::FixedSize(16),
+            LogicalType::Blob => PhysicalType::Varchar,
+        }
     }
 
     /// Get the byte width of this type's physical representation.
@@ -66,22 +83,42 @@ impl LogicalType {
     /// Returns `None` for variable-length types (Varchar, Blob).
     // Hint: match on physical_type(); Varchar => None, FixedSize(n) => Some(n), etc.
     pub fn byte_width(&self) -> Option<usize> {
-        todo!()
+        match self.physical_type() {
+            PhysicalType::Bool => Some(1),
+            PhysicalType::Int8 => Some(1),
+            PhysicalType::Int16 => Some(2),
+            PhysicalType::Int32 => Some(4),
+            PhysicalType::Int64 => Some(8),
+            PhysicalType::Float32 => Some(4),
+            PhysicalType::Float64 => Some(8),
+            PhysicalType::Varchar => None,
+            PhysicalType::FixedSize(n) => Some(n),
+        }
     }
 
     /// Check if this type is a numeric type (integers, floats, or decimal).
     pub fn is_numeric(&self) -> bool {
-        todo!()
+        self.is_integer() || self.is_float() || matches!(self, LogicalType::Decimal { .. })
     }
 
     /// Check if this type is an integer type (signed or unsigned).
     pub fn is_integer(&self) -> bool {
-        todo!()
+        matches!(
+            self,
+            LogicalType::Int8
+                | LogicalType::Int16
+                | LogicalType::Int32
+                | LogicalType::Int64
+                | LogicalType::UInt8
+                | LogicalType::UInt16
+                | LogicalType::UInt32
+                | LogicalType::UInt64
+        )
     }
 
     /// Check if this type is a floating-point type.
     pub fn is_float(&self) -> bool {
-        todo!()
+        matches!(self, LogicalType::Float32 | LogicalType::Float64)
     }
 
     /// Determine the result type of a coercion between two types.
@@ -105,7 +142,26 @@ impl LogicalType {
 // Implement Display so LogicalType can be printed in error messages and EXPLAIN output.
 impl fmt::Display for LogicalType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            LogicalType::Boolean => write!(f, "BOOLEAN"),
+            LogicalType::Int8 => write!(f, "TINYINT"),
+            LogicalType::Int16 => write!(f, "SMALLINT"),
+            LogicalType::Int32 => write!(f, "INTEGER"),
+            LogicalType::Int64 => write!(f, "BIGINT"),
+            LogicalType::UInt8 => write!(f, "UTINYINT"),
+            LogicalType::UInt16 => write!(f, "USMALLINT"),
+            LogicalType::UInt32 => write!(f, "UINTEGER"),
+            LogicalType::UInt64 => write!(f, "UBIGINT"),
+            LogicalType::Float32 => write!(f, "FLOAT"),
+            LogicalType::Float64 => write!(f, "DOUBLE"),
+            LogicalType::Varchar => write!(f, "VARCHAR"),
+            LogicalType::Date => write!(f, "DATE"),
+            LogicalType::Timestamp => write!(f, "TIMESTAMP"),
+            LogicalType::Decimal { precision, scale } => {
+                write!(f, "DECIMAL({},{})", precision, scale)
+            }
+            LogicalType::Blob => write!(f, "BLOB"),
+        }
     }
 }
 
@@ -138,7 +194,28 @@ impl ScalarValue {
     /// Get the logical type of this scalar value.
     // Hint: match each variant to its corresponding LogicalType.
     pub fn logical_type(&self) -> LogicalType {
-        todo!()
+        match self {
+            ScalarValue::Null(t) => t.clone(),
+            ScalarValue::Boolean(_) => LogicalType::Boolean,
+            ScalarValue::Int8(_) => LogicalType::Int8,
+            ScalarValue::Int16(_) => LogicalType::Int16,
+            ScalarValue::Int32(_) => LogicalType::Int32,
+            ScalarValue::Int64(_) => LogicalType::Int64,
+            ScalarValue::UInt8(_) => LogicalType::UInt8,
+            ScalarValue::UInt16(_) => LogicalType::UInt16,
+            ScalarValue::UInt32(_) => LogicalType::UInt32,
+            ScalarValue::UInt64(_) => LogicalType::UInt64,
+            ScalarValue::Float32(_) => LogicalType::Float32,
+            ScalarValue::Float64(_) => LogicalType::Float64,
+            ScalarValue::Varchar(_) => LogicalType::Varchar,
+            ScalarValue::Date(_) => LogicalType::Date,
+            ScalarValue::Timestamp(_) => LogicalType::Timestamp,
+            ScalarValue::Decimal { precision, scale, .. } => LogicalType::Decimal {
+                precision: *precision,
+                scale: *scale,
+            },
+            ScalarValue::Blob(_) => LogicalType::Blob,
+        }
     }
 
     /// Try to cast this scalar value to a different type.
@@ -170,6 +247,26 @@ impl ScalarValue {
 
 impl fmt::Display for ScalarValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            ScalarValue::Null(_) => write!(f, "NULL"),
+            ScalarValue::Boolean(v) => write!(f, "{}", v),
+            ScalarValue::Int8(v) => write!(f, "{}", v),
+            ScalarValue::Int16(v) => write!(f, "{}", v),
+            ScalarValue::Int32(v) => write!(f, "{}", v),
+            ScalarValue::Int64(v) => write!(f, "{}", v),
+            ScalarValue::UInt8(v) => write!(f, "{}", v),
+            ScalarValue::UInt16(v) => write!(f, "{}", v),
+            ScalarValue::UInt32(v) => write!(f, "{}", v),
+            ScalarValue::UInt64(v) => write!(f, "{}", v),
+            ScalarValue::Float32(v) => write!(f, "{}", v),
+            ScalarValue::Float64(v) => write!(f, "{}", v),
+            ScalarValue::Varchar(v) => write!(f, "{}", v),
+            ScalarValue::Date(v) => write!(f, "DATE({})", v),
+            ScalarValue::Timestamp(v) => write!(f, "TIMESTAMP({})", v),
+            ScalarValue::Decimal { value, precision, scale } => {
+                write!(f, "DECIMAL({},{},{})", value, precision, scale)
+            }
+            ScalarValue::Blob(v) => write!(f, "BLOB[{} bytes]", v.len()),
+        }
     }
 }

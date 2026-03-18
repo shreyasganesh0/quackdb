@@ -25,12 +25,16 @@ impl DataChunk {
     ///
     /// Each column is initialized with zero rows.
     pub fn new(types: &[LogicalType]) -> Self {
-        todo!()
+        Self::with_capacity(types, 0)
     }
 
     /// Create a data chunk with columns pre-allocated to hold `capacity` rows.
     pub fn with_capacity(types: &[LogicalType], capacity: usize) -> Self {
-        todo!()
+        let columns = types.iter().map(|t| Vector::new(t.clone(), capacity)).collect();
+        Self {
+            columns,
+            count: 0,
+        }
     }
 
     /// Number of rows in this chunk.
@@ -81,12 +85,17 @@ impl DataChunk {
 
     /// Flatten all constant vectors in this chunk into flat vectors.
     pub fn flatten(&mut self) {
-        todo!()
+        for col in &mut self.columns {
+            col.flatten();
+        }
     }
 
     /// Reset this chunk for reuse (set count to 0, clear vectors).
     pub fn reset(&mut self) {
-        todo!()
+        self.count = 0;
+        for col in &mut self.columns {
+            col.set_count(0);
+        }
     }
 
     /// Get the logical types of all columns.
@@ -114,14 +123,19 @@ pub struct ChunkCollection {
 impl ChunkCollection {
     /// Create a new empty chunk collection with the given column types.
     pub fn new(types: Vec<LogicalType>) -> Self {
-        todo!()
+        Self {
+            types,
+            chunks: Vec::new(),
+            total_count: 0,
+        }
     }
 
     /// Append a chunk to this collection.
     ///
     /// The chunk's column types must match the collection's schema.
     pub fn append(&mut self, chunk: DataChunk) {
-        todo!()
+        self.total_count += chunk.count();
+        self.chunks.push(chunk);
     }
 
     /// Total number of rows across all chunks.

@@ -1,8 +1,16 @@
-//! Lesson 24: Top-level Database Facade
+//! # Lesson 24: End-to-End Execution — Database Facade (File 2 of 2)
 //!
-//! Provides a simple, user-facing interface for executing SQL queries against
-//! QuackDB. This module ties together the full query pipeline: lexing,
-//! parsing, binding, planning, and execution.
+//! This file provides the top-level `Database` struct, the user-facing interface
+//! for executing SQL queries against QuackDB. It ties together the full query
+//! pipeline: lexing, parsing, binding, planning, and execution.
+//!
+//! It works together with:
+//! - `planner/physical_plan.rs` — the physical plan builder and `execute_plan()`
+//!   function that this facade calls to run queries after parsing and binding.
+//!
+//! **Implementation order**: Implement `planner/physical_plan.rs` first, then
+//! this file. `Database::execute_sql` is a thin orchestration layer that calls
+//! `Parser::parse_sql`, `Binder::bind`, and `execute_plan` in sequence.
 //!
 //! **Usage:** Create a [`Database`], then call [`Database::execute_sql`] with
 //! a SQL string. The method returns the result as a `Vec<DataChunk>`.
@@ -22,8 +30,9 @@ pub struct Database {
 impl Database {
     /// Create a new empty database with no tables.
     pub fn new() -> Self {
-        // Hint: initialize with Catalog::new().
-        todo!()
+        Self {
+            catalog: Catalog::new(),
+        }
     }
 
     /// Execute a SQL query string and return the result chunks.

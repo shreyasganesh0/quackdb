@@ -99,17 +99,29 @@ pub struct InMemorySource {
 impl InMemorySource {
     /// Create a new in-memory source from a vector of chunks and their column types.
     pub fn new(chunks: Vec<DataChunk>, types: Vec<LogicalType>) -> Self {
-        // Hint: store chunks, set position to 0, store types.
-        todo!()
+        Self {
+            chunks,
+            position: 0,
+            types,
+        }
     }
 }
 
 // Trait impl for the pull-based DataSource interface.
 impl DataSource for InMemorySource {
     fn next_chunk(&mut self) -> Result<Option<DataChunk>, String> {
-        // Hint: if position < chunks.len(), return chunks[position] and
-        // increment position; otherwise return None.
-        todo!()
+        if self.position < self.chunks.len() {
+            // Replace with an empty chunk to take ownership without Clone
+            let types = self.types.clone();
+            let chunk = std::mem::replace(
+                &mut self.chunks[self.position],
+                DataChunk::new(&types),
+            );
+            self.position += 1;
+            Ok(Some(chunk))
+        } else {
+            Ok(None)
+        }
     }
 
     fn schema(&self) -> Vec<LogicalType> {
@@ -136,8 +148,8 @@ impl CollectSink {
 
 impl DataSink for CollectSink {
     fn consume(&mut self, chunk: DataChunk) -> Result<(), String> {
-        // Hint: push the chunk onto self.chunks.
-        todo!()
+        self.chunks.push(chunk);
+        Ok(())
     }
 }
 
@@ -187,8 +199,8 @@ pub struct PipelineExecutor;
 impl PipelineExecutor {
     /// Execute a pipeline, collecting all output chunks into a `Vec`.
     pub fn execute(pipeline: Pipeline) -> Result<Vec<DataChunk>, String> {
-        // Hint: create a CollectSink, call pipeline.execute(&mut sink),
-        // then return sink.results().
-        todo!()
+        let mut sink = CollectSink::new();
+        pipeline.execute(&mut sink)?;
+        Ok(sink.results())
     }
 }

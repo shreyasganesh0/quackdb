@@ -75,40 +75,66 @@ pub struct TransactionManager {
 impl TransactionManager {
     /// Create a new manager with no active transactions.
     pub fn new() -> Self {
-        todo!()
+        Self {
+            next_txn_id: AtomicU64::new(1),
+            transactions: HashMap::new(),
+        }
     }
 
     /// Begin a new transaction, capturing a snapshot of currently active transactions.
     ///
     /// Returns the new transaction's ID.
     pub fn begin(&mut self) -> TxnId {
-        // Hint: use `next_txn_id.fetch_add(1, Ordering::SeqCst)` to mint an ID,
-        // then record all currently Active txn IDs as the snapshot.
-        todo!()
+        let id = self.next_txn_id.fetch_add(1, Ordering::SeqCst);
+        let snapshot: Vec<TxnId> = self.transactions.iter()
+            .filter(|(_, txn)| txn.status == TxnStatus::Active)
+            .map(|(&tid, _)| tid)
+            .collect();
+        self.transactions.insert(id, Transaction {
+            id,
+            status: TxnStatus::Active,
+            start_ts: id,
+            snapshot,
+        });
+        id
     }
 
     /// Mark a transaction as committed.
     ///
     /// After commit, the transaction's writes become visible to all newer snapshots.
     pub fn commit(&mut self, txn_id: TxnId) -> Result<(), String> {
-        todo!()
+        match self.transactions.get_mut(&txn_id) {
+            Some(txn) if txn.status == TxnStatus::Active => {
+                txn.status = TxnStatus::Committed;
+                Ok(())
+            }
+            Some(_) => Err(format!("Transaction {} is not active", txn_id)),
+            None => Err(format!("Transaction {} not found", txn_id)),
+        }
     }
 
     /// Mark a transaction as aborted (rolled back).
     ///
     /// The transaction's writes should be treated as invisible by all readers.
     pub fn abort(&mut self, txn_id: TxnId) -> Result<(), String> {
-        todo!()
+        match self.transactions.get_mut(&txn_id) {
+            Some(txn) if txn.status == TxnStatus::Active => {
+                txn.status = TxnStatus::Aborted;
+                Ok(())
+            }
+            Some(_) => Err(format!("Transaction {} is not active", txn_id)),
+            None => Err(format!("Transaction {} not found", txn_id)),
+        }
     }
 
     /// Query the current status of a transaction.
     pub fn status(&self, txn_id: TxnId) -> Option<TxnStatus> {
-        todo!()
+        self.transactions.get(&txn_id).map(|txn| txn.status)
     }
 
     /// Return the snapshot (list of active txn IDs at begin time) for `txn_id`.
     pub fn snapshot(&self, txn_id: TxnId) -> Option<&[TxnId]> {
-        todo!()
+        self.transactions.get(&txn_id).map(|txn| txn.snapshot.as_slice())
     }
 }
 
@@ -127,28 +153,41 @@ pub struct MvccTable {
 impl MvccTable {
     /// Create an empty MVCC table.
     pub fn new() -> Self {
-        todo!()
+        Self {
+            rows: Vec::new(),
+            txn_manager: TransactionManager::new(),
+        }
     }
 
     /// Begin a new transaction and return its ID.
     pub fn begin_transaction(&mut self) -> TxnId {
-        todo!()
+        self.txn_manager.begin()
     }
 
     /// Insert a new row within the given transaction.
     ///
     /// Returns the row ID (index in the `rows` vector) on success.
     pub fn insert(&mut self, txn_id: TxnId, data: Vec<ScalarValue>) -> Result<usize, String> {
-        // Hint: create a VersionedRow with `created_by = txn_id`,
-        // `deleted_by = None`, and `prev_version = None`.
-        todo!()
+        let row = VersionedRow {
+            data,
+            created_by: txn_id,
+            deleted_by: None,
+            prev_version: None,
+        };
+        let row_id = self.rows.len();
+        self.rows.push(row);
+        Ok(row_id)
     }
 
     /// Logically delete a row within the given transaction.
     ///
     /// Sets `deleted_by` on the current version rather than physically removing it.
     pub fn delete(&mut self, txn_id: TxnId, row_id: usize) -> Result<(), String> {
-        todo!()
+        if row_id >= self.rows.len() {
+            return Err(format!("Row {} does not exist", row_id));
+        }
+        self.rows[row_id].deleted_by = Some(txn_id);
+        Ok(())
     }
 
     /// Scan all rows visible to the given transaction.
@@ -160,12 +199,12 @@ impl MvccTable {
 
     /// Commit a transaction, making its writes durable and visible.
     pub fn commit(&mut self, txn_id: TxnId) -> Result<(), String> {
-        todo!()
+        self.txn_manager.commit(txn_id)
     }
 
     /// Abort a transaction, discarding its writes.
     pub fn abort(&mut self, txn_id: TxnId) -> Result<(), String> {
-        todo!()
+        self.txn_manager.abort(txn_id)
     }
 
     /// Run garbage collection, removing row versions that are no longer

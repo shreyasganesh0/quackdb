@@ -148,10 +148,30 @@ pub enum Token {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Hint: match on each variant and write a human-readable representation.
-        // E.g., Token::Integer(n) => write!(f, "{}", n),
-        //       Token::Keyword(kw) => write!(f, "{:?}", kw).
-        todo!()
+        match self {
+            Token::Integer(n) => write!(f, "{}", n),
+            Token::Float(n) => write!(f, "{}", n),
+            Token::StringLiteral(s) => write!(f, "'{}'", s),
+            Token::Identifier(s) => write!(f, "{}", s),
+            Token::Keyword(kw) => write!(f, "{:?}", kw),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Star => write!(f, "*"),
+            Token::Slash => write!(f, "/"),
+            Token::Percent => write!(f, "%"),
+            Token::Equal => write!(f, "="),
+            Token::NotEqual => write!(f, "!="),
+            Token::LessThan => write!(f, "<"),
+            Token::LessThanOrEqual => write!(f, "<="),
+            Token::GreaterThan => write!(f, ">"),
+            Token::GreaterThanOrEqual => write!(f, ">="),
+            Token::LeftParen => write!(f, "("),
+            Token::RightParen => write!(f, ")"),
+            Token::Comma => write!(f, ","),
+            Token::Semicolon => write!(f, ";"),
+            Token::Dot => write!(f, "."),
+            Token::Eof => write!(f, "EOF"),
+        }
     }
 }
 
@@ -208,15 +228,26 @@ pub struct Lexer {
 impl Lexer {
     /// Create a new lexer for the given SQL string.
     pub fn new(input: &str) -> Self {
-        // Hint: convert input to Vec<char>, set position=0, line=1, column=1.
-        todo!()
+        Self {
+            input: input.chars().collect(),
+            position: 0,
+            line: 1,
+            column: 1,
+        }
     }
 
     /// Tokenize the entire input, returning all tokens (including a trailing `Eof`).
     pub fn tokenize(&mut self) -> Result<Vec<PositionedToken>, LexerError> {
-        // Hint: repeatedly call next_token() and collect into a Vec
-        // until you see Token::Eof.
-        todo!()
+        let mut tokens = Vec::new();
+        loop {
+            let positioned = self.next_token()?;
+            let is_eof = positioned.token == Token::Eof;
+            tokens.push(positioned);
+            if is_eof {
+                break;
+            }
+        }
+        Ok(tokens)
     }
 
     /// Advance the cursor and return the next token.

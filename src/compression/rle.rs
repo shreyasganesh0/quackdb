@@ -69,5 +69,11 @@ pub fn decode_bytes(encoded: &[u8]) -> Vec<u8> {
 ///
 /// A ratio > 1.0 means the data got smaller; < 1.0 means it grew.
 pub fn compression_ratio<T>(original_len: usize, encoded: &RleEncoded<T>) -> f64 {
-    todo!()
+    let original_size = original_len * std::mem::size_of::<T>();
+    // Each run stores one T value + one u32 count
+    let compressed_size = encoded.runs.len() * (std::mem::size_of::<T>() + std::mem::size_of::<u32>());
+    if compressed_size == 0 {
+        return 0.0;
+    }
+    original_size as f64 / compressed_size as f64
 }

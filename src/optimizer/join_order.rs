@@ -1,8 +1,19 @@
-//! Lesson 26: Join Order Optimization (DPsub)
+//! # Lesson 26: Query Optimization — Join Order / DPsub (File 3 of 3)
 //!
-//! Finds the optimal join order for multi-way joins using the DPsub dynamic
-//! programming algorithm. The key idea: enumerate all subsets of relations,
-//! computing the cheapest join tree for each subset bottom-up.
+//! This file implements join order optimization using the DPsub dynamic
+//! programming algorithm. It finds the optimal join order for multi-way joins
+//! by enumerating all subsets of relations and computing the cheapest join tree
+//! for each subset bottom-up.
+//!
+//! It works together with:
+//! - `statistics.rs` — provides `TableStatistics` used to estimate join output
+//!   cardinalities.
+//! - `cost_model.rs` — provides `CostModel` and `Cost` used to evaluate and
+//!   compare candidate join orderings.
+//!
+//! **Implementation order**: Implement `statistics.rs` and `cost_model.rs`
+//! first, then this file. The DPsub algorithm calls `CostModel::hash_join_cost`
+//! and relies on cardinality estimates to pick the cheapest plan.
 
 use crate::planner::logical_plan::LogicalPlan;
 use super::statistics::TableStatistics;
@@ -50,7 +61,16 @@ impl RelationSet {
     /// This is the inner loop of DPsub. Use the bit-manipulation trick:
     /// `sub = (sub - 1) & self.bits` to enumerate subsets in descending order.
     pub fn subsets(&self) -> Vec<RelationSet> {
-        todo!()
+        let mut result = Vec::new();
+        if self.bits == 0 {
+            return result;
+        }
+        let mut sub = (self.bits - 1) & self.bits;
+        while sub > 0 {
+            result.push(RelationSet { bits: sub });
+            sub = (sub - 1) & self.bits;
+        }
+        result
     }
 }
 

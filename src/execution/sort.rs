@@ -35,8 +35,10 @@ impl<T> MinHeap<T> {
     // `impl Fn` sugar: accepts any closure matching the signature.
     // `+ 'static` required because we store it in a Box<dyn Fn>.
     pub fn new(compare: impl Fn(&T, &T) -> std::cmp::Ordering + 'static) -> Self {
-        // Hint: store an empty Vec and box the comparison closure.
-        todo!()
+        Self {
+            data: Vec::new(),
+            compare: Box::new(compare),
+        }
     }
 
     /// Push a value onto the heap, maintaining the heap invariant.
@@ -96,9 +98,15 @@ impl ExternalSortOperator {
     /// `memory_budget` limits how much data is held in a single run before
     /// flushing. Set to `usize::MAX` for a pure in-memory sort.
     pub fn new(sort_keys: Vec<SortKey>, output_types: Vec<LogicalType>, memory_budget: usize) -> Self {
-        // Hint: initialize runs and current_run as empty, current_run_size = 0,
-        // finalized = false.
-        todo!()
+        Self {
+            sort_keys,
+            output_types,
+            memory_budget,
+            runs: Vec::new(),
+            current_run: Vec::new(),
+            current_run_size: 0,
+            finalized: false,
+        }
     }
 
     /// Sort a single chunk in memory according to the sort keys.
@@ -171,8 +179,13 @@ impl TopNOperator {
     ///
     /// `limit` is the maximum number of output rows.
     pub fn new(sort_keys: Vec<SortKey>, limit: usize, output_types: Vec<LogicalType>) -> Self {
-        // Hint: initialize buffer as empty, finalized = false.
-        todo!()
+        Self {
+            sort_keys,
+            limit,
+            output_types,
+            buffer: Vec::new(),
+            finalized: false,
+        }
     }
 }
 

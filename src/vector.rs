@@ -24,41 +24,88 @@ impl ValidityMask {
     /// Create a new validity mask with all values marked valid (all bits set).
     // Hint: compute `ceil(count / 64)` words, fill with `u64::MAX`.
     pub fn new_all_valid(count: usize) -> Self {
-        todo!()
+        let num_words = (count + 63) / 64;
+        Self {
+            bits: vec![u64::MAX; num_words],
+            count,
+        }
     }
 
     /// Create a new validity mask with all values marked invalid/null (all bits cleared).
     pub fn new_all_invalid(count: usize) -> Self {
-        todo!()
+        let num_words = (count + 63) / 64;
+        Self {
+            bits: vec![0u64; num_words],
+            count,
+        }
     }
 
     /// Check if the value at the given index is valid (non-null).
     // Hint: word index = index / 64, bit position = index % 64.
     pub fn is_valid(&self, index: usize) -> bool {
-        todo!()
+        let word = index / 64;
+        let bit = index % 64;
+        (self.bits[word] >> bit) & 1 == 1
     }
 
     /// Set the validity of the value at the given index.
     // Hint: use bitwise OR to set, AND with NOT to clear.
     pub fn set_valid(&mut self, index: usize, valid: bool) {
-        todo!()
+        let word = index / 64;
+        let bit = index % 64;
+        if valid {
+            self.bits[word] |= 1u64 << bit;
+        } else {
+            self.bits[word] &= !(1u64 << bit);
+        }
     }
 
     /// Set a range of values as valid.
     pub fn set_valid_range(&mut self, start: usize, count: usize) {
-        todo!()
+        for i in start..start + count {
+            self.set_valid(i, true);
+        }
     }
 
     /// Check if all values are valid (no nulls).
     // Hint: verify every bit is set; watch out for trailing bits in the last word.
     pub fn all_valid(&self) -> bool {
-        todo!()
+        if self.count == 0 {
+            return true;
+        }
+        let full_words = self.count / 64;
+        for i in 0..full_words {
+            if self.bits[i] != u64::MAX {
+                return false;
+            }
+        }
+        let remaining = self.count % 64;
+        if remaining > 0 {
+            let mask = (1u64 << remaining) - 1;
+            if self.bits[full_words] & mask != mask {
+                return false;
+            }
+        }
+        true
     }
 
     /// Count the number of valid (non-null) values.
     // Hint: sum `count_ones()` across all words, adjusting the last word.
     pub fn count_valid(&self) -> usize {
-        todo!()
+        if self.count == 0 {
+            return 0;
+        }
+        let full_words = self.count / 64;
+        let mut total: usize = 0;
+        for i in 0..full_words {
+            total += self.bits[i].count_ones() as usize;
+        }
+        let remaining = self.count % 64;
+        if remaining > 0 {
+            let mask = (1u64 << remaining) - 1;
+            total += (self.bits[full_words] & mask).count_ones() as usize;
+        }
+        total
     }
 
     /// Count of entries tracked by this mask.
@@ -68,7 +115,9 @@ impl ValidityMask {
 
     /// Resize the mask to hold `new_count` entries; new entries default to valid.
     pub fn resize(&mut self, new_count: usize) {
-        todo!()
+        let new_num_words = (new_count + 63) / 64;
+        self.bits.resize(new_num_words, u64::MAX);
+        self.count = new_count;
     }
 }
 
@@ -120,7 +169,9 @@ impl SelectionVector {
 
     /// Create an incrementing selection vector `[0, 1, 2, ..., count-1]`.
     pub fn incrementing(count: usize) -> Self {
-        todo!()
+        Self {
+            indices: (0..count as u32).collect(),
+        }
     }
 }
 
@@ -145,7 +196,23 @@ impl Vector {
     // Hint: use `LogicalType::byte_width()` to size the data buffer.
     // For variable-length types, initialize an empty offsets vec.
     pub fn new(logical_type: LogicalType, count: usize) -> Self {
-        todo!()
+        let data_size = match logical_type.byte_width() {
+            Some(width) => width * count,
+            None => 0, // variable-length: data grows dynamically
+        };
+        let offsets = if logical_type.byte_width().is_none() {
+            Some(vec![0u32]) // initial offset for variable-length types
+        } else {
+            None
+        };
+        Self {
+            logical_type,
+            vector_type: VectorType::Flat,
+            data: vec![0u8; data_size],
+            validity: ValidityMask::new_all_valid(count),
+            count,
+            offsets,
+        }
     }
 
     /// Create a constant vector that repeats a single value for `count` rows.
@@ -213,7 +280,7 @@ impl Vector {
 
     /// Set the value at the given index to null.
     pub fn set_null(&mut self, index: usize) {
-        todo!()
+        self.validity.set_valid(index, false);
     }
 
     /// Flatten a constant vector into a flat vector by replicating the value.

@@ -145,8 +145,8 @@ impl PhysicalOperator for WindowOperator {
     }
 
     fn execute(&mut self, input: &DataChunk) -> Result<OperatorResult, String> {
-        // Hint: push input into `input_buffer` and return NeedMoreInput.
-        todo!()
+        self.input_buffer.push(input.clone());
+        Ok(OperatorResult::NeedMoreInput)
     }
 
     fn finalize(&mut self) -> Result<Option<DataChunk>, String> {

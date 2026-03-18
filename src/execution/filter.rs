@@ -1,8 +1,16 @@
-//! Lesson 15: Filter Operator
+//! # Lesson 15: Execution Operators — Filter (File 2 of 3)
 //!
-//! Filters rows based on a boolean predicate expression. The predicate is
-//! evaluated against each input chunk to produce a [`SelectionVector`], and
-//! only matching rows are forwarded downstream.
+//! This file implements the filter operator, which evaluates a boolean predicate
+//! against each input chunk and forwards only matching rows downstream.
+//!
+//! It works together with:
+//! - `scan.rs` — the table scan operator that produces the chunks this filter
+//!   consumes.
+//! - `projection.rs` — the projection operator that reshapes columns after
+//!   filtering.
+//!
+//! **Implementation order**: Implement `scan.rs` first, then this file, then
+//! `projection.rs`. The filter sits between scan and projection in the pipeline.
 //!
 //! **Key idea:** Evaluate the predicate expression to get a boolean vector,
 //! then build a selection vector of row indices where the result is `true`.

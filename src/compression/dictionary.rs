@@ -28,7 +28,10 @@ pub struct Dictionary<T: Clone + Eq + Hash> {
 impl<T: Clone + Eq + Hash> Dictionary<T> {
     /// Create a new empty dictionary.
     pub fn new() -> Self {
-        todo!()
+        Self {
+            value_to_code: HashMap::new(),
+            code_to_value: Vec::new(),
+        }
     }
 
     /// Insert a value into the dictionary, returning its code.
@@ -36,22 +39,28 @@ impl<T: Clone + Eq + Hash> Dictionary<T> {
     /// If the value already exists, returns the existing code without
     /// adding a duplicate.
     pub fn insert(&mut self, value: T) -> u32 {
-        todo!()
+        if let Some(&code) = self.value_to_code.get(&value) {
+            return code;
+        }
+        let code = self.code_to_value.len() as u32;
+        self.value_to_code.insert(value.clone(), code);
+        self.code_to_value.push(value);
+        code
     }
 
     /// Look up the code for a value. Returns `None` if not present.
     pub fn get_code(&self, value: &T) -> Option<u32> {
-        todo!()
+        self.value_to_code.get(value).copied()
     }
 
     /// Look up the value for a code. Returns `None` if out of range.
     pub fn get_value(&self, code: u32) -> Option<&T> {
-        todo!()
+        self.code_to_value.get(code as usize)
     }
 
     /// Number of distinct values in the dictionary.
     pub fn cardinality(&self) -> usize {
-        todo!()
+        self.code_to_value.len()
     }
 }
 
@@ -88,7 +97,14 @@ pub fn decode<T: Clone + Eq + Hash>(encoded: &DictionaryEncoded<T>) -> Vec<Optio
 /// Returns `true` if the distinct-value ratio (cardinality / total) is below
 /// the given `threshold` (e.g., 0.5 means fewer than 50% unique values).
 pub fn should_dictionary_encode<T: Clone + Eq + Hash>(data: &[T], threshold: f64) -> bool {
-    todo!()
+    if data.is_empty() {
+        return false;
+    }
+    let mut unique = std::collections::HashSet::new();
+    for v in data {
+        unique.insert(v);
+    }
+    (unique.len() as f64 / data.len() as f64) < threshold
 }
 
 /// Calculate the compression ratio for dictionary encoding.
@@ -96,5 +112,13 @@ pub fn should_dictionary_encode<T: Clone + Eq + Hash>(data: &[T], threshold: f64
 /// Compares the original size (`original_count * original_value_size`) to the
 /// encoded size (dictionary entries + code array).
 pub fn compression_ratio<T: Clone + Eq + Hash>(original_count: usize, original_value_size: usize, encoded: &DictionaryEncoded<T>) -> f64 {
-    todo!()
+    let original_size = original_count * original_value_size;
+    // Encoded size: dictionary entries (cardinality * value_size) + codes (count * 4 bytes for u32)
+    let dict_size = encoded.dictionary.cardinality() * original_value_size;
+    let codes_size = encoded.codes.len() * std::mem::size_of::<u32>();
+    let encoded_size = dict_size + codes_size;
+    if encoded_size == 0 {
+        return 0.0;
+    }
+    original_size as f64 / encoded_size as f64
 }

@@ -1,9 +1,17 @@
-//! Lesson 23: Catalog
+//! # Lesson 23: Query Planning — Catalog (File 1 of 2)
 //!
-//! Database catalog for tracking table definitions and their in-memory data.
-//! The catalog is the central metadata store: the binder queries it to
-//! resolve table/column names, and the physical plan builder reads table
-//! data from it.
+//! This file implements the database catalog, the central metadata store that
+//! tracks table definitions and their in-memory data. The binder queries it to
+//! resolve table/column names, and the physical plan builder reads table data
+//! from it.
+//!
+//! It works together with:
+//! - `binder.rs` — name resolution and type checking that uses the catalog to
+//!   look up table schemas and resolve column references.
+//!
+//! **Start here**: Implement `catalog.rs` first, then `binder.rs`. The binder
+//! depends on `Catalog` methods like `get_table()` to resolve names, so having
+//! the catalog working first lets you test the binder incrementally.
 //!
 //! **Key idea:** A `HashMap<String, TableInfo>` stores table schemas, and
 //! a parallel `HashMap<String, Vec<DataChunk>>` stores the actual row data.
@@ -59,47 +67,56 @@ pub struct Catalog {
 impl Catalog {
     /// Create a new empty catalog with no tables.
     pub fn new() -> Self {
-        // Hint: initialize both HashMaps as empty.
-        todo!()
+        Self {
+            tables: HashMap::new(),
+            table_data: HashMap::new(),
+        }
     }
 
     /// Register a new table in the catalog.
     ///
     /// Returns an error if a table with the same name already exists.
     pub fn create_table(&mut self, info: TableInfo) -> Result<(), String> {
-        // Hint: check if self.tables already contains the name;
-        // if so, return Err. Otherwise insert into both tables and table_data.
-        todo!()
+        if self.tables.contains_key(&info.name) {
+            return Err(format!("Table '{}' already exists", info.name));
+        }
+        let name = info.name.clone();
+        self.tables.insert(name.clone(), info);
+        self.table_data.insert(name, Vec::new());
+        Ok(())
     }
 
     /// Look up a table's metadata by name.
     pub fn get_table(&self, name: &str) -> Option<&TableInfo> {
-        // Hint: self.tables.get(name).
-        todo!()
+        self.tables.get(name)
     }
 
     /// Remove a table and its data from the catalog.
     ///
     /// Returns an error if the table does not exist.
     pub fn drop_table(&mut self, name: &str) -> Result<(), String> {
-        // Hint: remove from both self.tables and self.table_data.
-        todo!()
+        if self.tables.remove(name).is_none() {
+            return Err(format!("Table '{}' does not exist", name));
+        }
+        self.table_data.remove(name);
+        Ok(())
     }
 
     /// Append a data chunk to the named table's storage.
     ///
     /// Returns an error if the table does not exist.
     pub fn insert_data(&mut self, table_name: &str, chunk: DataChunk) -> Result<(), String> {
-        // Hint: look up the table_data entry and push the chunk.
-        todo!()
+        let data = self.table_data.get_mut(table_name)
+            .ok_or_else(|| format!("Table '{}' does not exist", table_name))?;
+        data.push(chunk);
+        Ok(())
     }
 
     /// Retrieve all stored data chunks for a table.
     ///
     /// Returns `None` if the table does not exist.
     pub fn get_table_data(&self, table_name: &str) -> Option<&[DataChunk]> {
-        // Hint: self.table_data.get(table_name).map(|v| v.as_slice()).
-        todo!()
+        self.table_data.get(table_name).map(|v| v.as_slice())
     }
 
     /// Return a list of all table names in the catalog.
