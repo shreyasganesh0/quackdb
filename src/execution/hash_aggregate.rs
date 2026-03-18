@@ -1,6 +1,14 @@
 //! Lesson 16: Hash Aggregation
 //!
-//! Hash-based aggregation with open-addressing hash table.
+//! Hash-based aggregation using an open-addressing hash table. This is a
+//! *pipeline breaker*: it accumulates all input during `execute`, then
+//! produces grouped/aggregated output during `finalize`.
+//!
+//! **Key idea:** For each input chunk, evaluate group-by expressions to
+//! form a group key, hash the key, and look up or create an entry in the
+//! hash table. Update the aggregate states (count, sum, min, etc.) for
+//! that group. After all input is consumed, iterate over the hash table
+//! to produce result chunks.
 
 use crate::chunk::DataChunk;
 use crate::types::{LogicalType, ScalarValue};
@@ -9,101 +17,161 @@ use super::expression::Expression;
 use super::pipeline::{OperatorResult, PhysicalOperator};
 use std::collections::HashMap;
 
-/// Aggregate function types.
+/// Supported aggregate function types.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AggregateType {
+    /// COUNT(expr) — counts non-NULL values.
     Count,
+    /// SUM(expr) — sum of numeric values.
     Sum,
+    /// AVG(expr) — average (implemented as sum/count).
     Avg,
+    /// MIN(expr) — minimum value.
     Min,
+    /// MAX(expr) — maximum value.
     Max,
+    /// COUNT(*) — counts all rows including NULLs.
     CountStar,
 }
 
 /// Trait for aggregate function implementations.
+///
+/// Each aggregate function manages its own state through [`AggregateState`].
+/// The lifecycle is: `init` -> repeated `update` calls -> `finalize`.
 pub trait AggregateFunction {
-    /// Initialize the aggregate state.
+    /// Create a fresh initial state for this aggregate.
     fn init(&self) -> AggregateState;
-    /// Update the state with a new value.
+
+    /// Fold a new value into the running state.
     fn update(&self, state: &mut AggregateState, value: &ScalarValue);
-    /// Get the final result.
+
+    /// Extract the final scalar result from the accumulated state.
     fn finalize(&self, state: &AggregateState) -> ScalarValue;
-    /// Merge two states (for parallel aggregation).
+
+    /// Merge two states (used for parallel / partitioned aggregation).
     fn merge(&self, state: &mut AggregateState, other: &AggregateState);
-    /// The result type.
+
+    /// The logical type of the aggregate's result.
     fn result_type(&self) -> LogicalType;
 }
 
-/// State held by an aggregate function during computation.
+/// Mutable state held by an aggregate function during computation.
+///
+/// Fields are general-purpose so a single struct can serve all aggregate
+/// types. Not every field is meaningful for every aggregate.
 #[derive(Debug, Clone)]
 pub struct AggregateState {
+    /// Tracks the current result value (used by Min/Max).
     pub value: ScalarValue,
+    /// Running row count (used by Count, Avg).
     pub count: u64,
+    /// Running sum (used by Sum, Avg).
     pub sum: f64,
 }
 
 impl AggregateState {
+    /// Create a new default aggregate state.
     pub fn new() -> Self {
+        // Hint: initialize value to Null, count to 0, sum to 0.0.
         todo!()
     }
 }
 
-/// Create an aggregate function implementation.
+/// Factory function: create an aggregate function implementation for the
+/// given aggregate type and input type.
+///
+/// Returns a boxed trait object that implements the aggregate logic.
 pub fn create_aggregate(agg_type: AggregateType, input_type: &LogicalType) -> Box<dyn AggregateFunction> {
+    // Hint: match on agg_type and return the appropriate struct that
+    // implements AggregateFunction. You may define private structs
+    // (e.g., SumAggregate, CountAggregate) in this module.
     todo!()
 }
 
-/// Open-addressing hash table for aggregation.
+/// Open-addressing hash table for group-by aggregation.
+///
+/// Groups are keyed by their serialized group-column values. Each group
+/// entry holds a vector of [`AggregateState`]s, one per aggregate function.
 pub struct AggregateHashTable {
-    /// Mapping from group key to aggregate states.
+    /// Mapping from serialized group key -> per-aggregate states.
     groups: HashMap<Vec<u8>, Vec<AggregateState>>,
+    /// Types of the group-by columns.
     group_types: Vec<LogicalType>,
+    /// Which aggregate functions to compute.
     agg_types: Vec<AggregateType>,
+    /// Input types for each aggregate expression.
     agg_input_types: Vec<LogicalType>,
 }
 
 impl AggregateHashTable {
-    /// Create a new aggregate hash table.
+    /// Create a new empty aggregate hash table.
     pub fn new(
         group_types: Vec<LogicalType>,
         agg_types: Vec<AggregateType>,
         agg_input_types: Vec<LogicalType>,
     ) -> Self {
+        // Hint: store the parameters; initialize groups as an empty HashMap.
         todo!()
     }
 
     /// Add a chunk of data to the hash table.
+    ///
+    /// For each row: serialize the group columns into a key, look up or
+    /// create the group entry, then update each aggregate state with the
+    /// corresponding aggregate column value.
     pub fn add_chunk(
         &mut self,
         group_columns: &[usize],
         agg_columns: &[usize],
         chunk: &DataChunk,
     ) -> Result<(), String> {
+        // Hint: iterate over rows in the chunk. For each row, build a
+        // byte key from group_columns, then entry-or-insert into
+        // self.groups and call update on each aggregate state.
         todo!()
     }
 
     /// Produce the final aggregated result as data chunks.
+    ///
+    /// Iterates over all groups, finalizes each aggregate state, and
+    /// assembles the group keys + aggregate results into output chunks.
     pub fn finalize(&self) -> Result<Vec<DataChunk>, String> {
+        // Hint: for each (key, states) in self.groups, deserialize the
+        // group key back into scalar values, call finalize on each
+        // aggregate state, and append a row to the output.
         todo!()
     }
 
-    /// Number of groups in the hash table.
+    /// Return the number of distinct groups accumulated so far.
     pub fn group_count(&self) -> usize {
         self.groups.len()
     }
 }
 
 /// Hash aggregate operator for pipeline execution.
+///
+/// This is a pipeline breaker: `execute` absorbs input into the hash table,
+/// and `finalize` emits the grouped results.
 pub struct HashAggregateOperator {
+    /// Expressions evaluated to compute group keys.
     group_exprs: Vec<Expression>,
+    /// Which aggregate functions to apply.
     agg_types: Vec<AggregateType>,
+    /// Expressions evaluated to compute aggregate inputs.
     agg_exprs: Vec<Expression>,
+    /// The underlying hash table (created on first use).
     hash_table: Option<AggregateHashTable>,
+    /// Output column types: group types followed by aggregate result types.
     output_types: Vec<LogicalType>,
+    /// Whether finalize has already been called.
     finalized: bool,
 }
 
 impl HashAggregateOperator {
+    /// Create a new hash aggregate operator.
+    ///
+    /// `group_exprs` define the GROUP BY key; `agg_exprs` are the inputs
+    /// to the aggregate functions listed in `agg_types`.
     pub fn new(
         group_exprs: Vec<Expression>,
         agg_types: Vec<AggregateType>,
@@ -111,20 +179,28 @@ impl HashAggregateOperator {
         group_types: Vec<LogicalType>,
         agg_input_types: Vec<LogicalType>,
     ) -> Self {
+        // Hint: compute output_types as group_types ++ result types for
+        // each aggregate. Initialize hash_table to None (lazy creation).
         todo!()
     }
 }
 
+// Trait impl: pipeline breaker — accumulates during execute, emits during finalize.
 impl PhysicalOperator for HashAggregateOperator {
     fn output_schema(&self) -> Vec<LogicalType> {
         self.output_types.clone()
     }
 
     fn execute(&mut self, input: &DataChunk) -> Result<OperatorResult, String> {
+        // Hint: evaluate group_exprs and agg_exprs against the input chunk,
+        // then call hash_table.add_chunk(). Always return NeedMoreInput
+        // because aggregation is a pipeline breaker.
         todo!()
     }
 
     fn finalize(&mut self) -> Result<Option<DataChunk>, String> {
+        // Hint: call hash_table.finalize() to get the grouped results.
+        // Return the first chunk (or None if empty).
         todo!()
     }
 

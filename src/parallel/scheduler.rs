@@ -1,56 +1,79 @@
 //! Lesson 29: Parallel Pipeline Scheduler
 //!
-//! Spawns worker threads for morsel-driven parallel execution.
+//! Spawns N worker threads that each pull morsels from a shared queue, apply
+//! a pipeline of physical operators, and push results to a shared collector.
+//! This is the top-level coordinator for morsel-driven parallelism.
 
 use super::morsel::{MorselQueue, ParallelCollector};
 use crate::chunk::DataChunk;
 use crate::execution::pipeline::PhysicalOperator;
 use std::sync::Arc;
 
-/// Parallel pipeline executor that spawns N worker threads.
+/// Parallel pipeline executor that spawns `num_workers` threads.
+///
+/// Each worker gets its own operator instance (via the factory closure) to
+/// avoid shared mutable state inside operators.
 pub struct ParallelPipelineExecutor {
     num_workers: usize,
 }
 
 impl ParallelPipelineExecutor {
+    /// Create an executor with the given worker count.
     pub fn new(num_workers: usize) -> Self {
         Self { num_workers }
     }
 
     /// Execute a pipeline in parallel using morsel-driven parallelism.
-    /// `operator_factory` creates a fresh operator instance for each worker.
+    ///
+    /// `operator_factory` creates a fresh operator instance for each worker,
+    /// ensuring operators don't need interior mutability or synchronization.
+    ///
+    /// Workers loop: take morsel -> execute operator -> push result to collector.
     pub fn execute(
         &self,
         morsel_queue: Arc<MorselQueue>,
+        // The Fn() -> ... + Send + Sync bounds allow the factory closure to
+        // be shared safely across threads (Send) and called concurrently (Sync).
         operator_factory: impl Fn() -> Box<dyn PhysicalOperator + Send> + Send + Sync,
         collector: Arc<ParallelCollector>,
     ) -> Result<(), String> {
+        // Hint: use `std::thread::scope` (or `crossbeam::scope`) to spawn
+        // workers. Each worker: loop { take morsel, execute, push result }.
+        // After all workers join, call `finalize` on one operator instance
+        // if needed.
         todo!()
     }
 }
 
-/// Partitioned hash table for parallel aggregation.
+/// A hash table partitioned across N segments for parallel aggregation.
+///
+/// Each worker thread writes to its own partition (determined by hash),
+/// avoiding contention. After all workers finish, partitions are merged.
 pub struct PartitionedHashTable {
     num_partitions: usize,
     partitions: Vec<crate::execution::hash_aggregate::AggregateHashTable>,
 }
 
 impl PartitionedHashTable {
+    /// Create a partitioned hash table with one `AggregateHashTable` per partition.
     pub fn new(
         num_partitions: usize,
         group_types: Vec<crate::types::LogicalType>,
         agg_types: Vec<crate::execution::hash_aggregate::AggregateType>,
         agg_input_types: Vec<crate::types::LogicalType>,
     ) -> Self {
+        // Hint: create `num_partitions` independent AggregateHashTable instances,
+        // each with cloned copies of the type vectors.
         todo!()
     }
 
-    /// Get the partition index for a hash value.
+    /// Map a hash value to a partition index using modular arithmetic.
     pub fn partition_for_hash(&self, hash: u64) -> usize {
+        // Hint: `hash as usize % self.num_partitions`
         todo!()
     }
 
-    /// Merge all partitions and produce final results.
+    /// Merge all per-partition tables and produce the final aggregated result chunks.
     pub fn merge_and_finalize(&self) -> Result<Vec<DataChunk>, String> {
         todo!()
     }

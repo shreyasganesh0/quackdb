@@ -1,10 +1,18 @@
 //! Lesson 01: Arena Allocator
 //!
-//! A bump/arena allocator using Vec<Vec<u8>> blocks for fast, bulk allocation.
+//! A bump/arena allocator that hands out memory from pre-allocated `Vec<u8>` blocks.
+//! Allocations are fast (pointer bump) but individual frees are not supported --
+//! instead the entire arena (or a scope within it) is reset at once.
+//!
+//! Key Rust concepts: raw pointers, `unsafe` for pointer-to-slice conversion,
+//! lifetimes tying borrowed slices to the arena, and `Copy` trait bounds.
 
 const DEFAULT_BLOCK_SIZE: usize = 4096;
 
 /// A simple arena (bump) allocator that allocates memory from pre-allocated blocks.
+///
+/// Memory is carved out of `Vec<u8>` blocks. When the current block is full,
+/// a new one is allocated. All blocks are freed together on `reset` or drop.
 pub struct Arena {
     blocks: Vec<Vec<u8>>,
     current_offset: usize,
@@ -23,23 +31,38 @@ impl Arena {
         todo!()
     }
 
-    /// Allocate `size` bytes with the given alignment from the arena.
-    /// Returns a mutable slice to the allocated memory.
+    /// Allocate `size` bytes with the given `align`ment from the arena.
+    ///
+    /// Returns a mutable slice of the allocated region. If the current block
+    /// is too small, a new block is allocated.
+    ///
+    // Hint: round `current_offset` up to the next multiple of `align`.
+    // Use unsafe to convert a raw pointer into a mutable slice (`std::slice::from_raw_parts_mut`).
     pub fn alloc(&mut self, size: usize, align: usize) -> &mut [u8] {
         todo!()
     }
 
-    /// Allocate space for a value of type T and return a mutable reference.
+    /// Allocate space for a value of type `T` and return a mutable reference.
+    ///
+    /// The allocation is sized and aligned to `T` via `std::mem::size_of` / `align_of`.
+    // Hint: use `self.alloc(size_of::<T>(), align_of::<T>())` then
+    // cast the returned `&mut [u8]` pointer to `&mut T` with unsafe.
     pub fn alloc_typed<T: Copy>(&mut self) -> &mut T {
         todo!()
     }
 
-    /// Allocate and copy a string into the arena, returning an ArenaString.
+    /// Allocate and copy a string into the arena, returning an `ArenaString`.
+    ///
+    /// The string bytes live inside the arena; `ArenaString` holds a raw pointer
+    /// and length back into that memory.
     pub fn alloc_string(&mut self, s: &str) -> ArenaString {
         todo!()
     }
 
     /// Reset the arena, reusing existing blocks without deallocating.
+    ///
+    /// After reset, all previous allocations are invalidated. The backing
+    /// `Vec<u8>` blocks are retained so future allocations avoid re-allocating.
     pub fn reset(&mut self) {
         todo!()
     }
@@ -55,6 +78,7 @@ impl Arena {
     }
 }
 
+// Default trait delegates to `Arena::new()`.
 impl Default for Arena {
     fn default() -> Self {
         Self::new()
@@ -62,14 +86,21 @@ impl Default for Arena {
 }
 
 /// A string allocated within an Arena. Provides a view into arena memory.
+///
+/// This is `Copy` because it is just a pointer + length (no ownership).
+/// The caller must ensure the backing `Arena` outlives any `ArenaString`.
 #[derive(Clone, Copy)]
 pub struct ArenaString {
+    // Raw pointer into arena-owned memory.
     ptr: *const u8,
     len: usize,
 }
 
 impl ArenaString {
-    /// Get the string as a &str slice.
+    /// Get the string as a `&str` slice.
+    ///
+    // Hint: use `unsafe { std::slice::from_raw_parts(self.ptr, self.len) }`
+    // then `std::str::from_utf8_unchecked` (the bytes came from a valid &str).
     pub fn as_str(&self) -> &str {
         todo!()
     }
@@ -86,7 +117,11 @@ impl ArenaString {
 }
 
 /// A scoped arena that can be used for temporary allocations.
-/// When dropped or reset, only the allocations made within this scope are freed.
+///
+/// Records the parent arena's position on creation, and rewinds back to
+/// that position on `reset` (or drop), freeing only the scoped allocations.
+// Hint: the lifetime `'a` ties this scope to the parent `Arena`,
+// ensuring the parent cannot be used directly while a scope is active.
 pub struct ScopedArena<'a> {
     parent: &'a mut Arena,
     start_block: usize,
@@ -95,11 +130,14 @@ pub struct ScopedArena<'a> {
 
 impl<'a> ScopedArena<'a> {
     /// Create a new scoped arena from a parent arena.
+    ///
+    /// Captures the parent's current allocation position so it can be
+    /// restored later via `reset`.
     pub fn new(parent: &'a mut Arena) -> Self {
         todo!()
     }
 
-    /// Allocate bytes within this scope.
+    /// Allocate bytes within this scope. Delegates to the parent arena.
     pub fn alloc(&mut self, size: usize, align: usize) -> &mut [u8] {
         todo!()
     }
@@ -110,6 +148,9 @@ impl<'a> ScopedArena<'a> {
     }
 
     /// Reset the scope, freeing all allocations made within it.
+    ///
+    /// Restores the parent arena's offset to where it was when this scope
+    /// was created.
     pub fn reset(&mut self) {
         todo!()
     }

@@ -1,32 +1,51 @@
-//! Top-level Database facade.
+//! Lesson 24: Top-level Database Facade
 //!
-//! Provides a simple interface for executing SQL against QuackDB.
+//! Provides a simple, user-facing interface for executing SQL queries against
+//! QuackDB. This module ties together the full query pipeline: lexing,
+//! parsing, binding, planning, and execution.
+//!
+//! **Usage:** Create a [`Database`], then call [`Database::execute_sql`] with
+//! a SQL string. The method returns the result as a `Vec<DataChunk>`.
 
 use crate::planner::catalog::Catalog;
 use crate::chunk::DataChunk;
 
-/// The top-level QuackDB database.
+/// The top-level QuackDB database instance.
+///
+/// Owns the [`Catalog`] and orchestrates the full SQL execution pipeline:
+/// SQL string -> tokens -> AST -> logical plan -> physical plan -> results.
 pub struct Database {
+    /// The database catalog storing table schemas and data.
     catalog: Catalog,
 }
 
 impl Database {
-    /// Create a new empty database.
+    /// Create a new empty database with no tables.
     pub fn new() -> Self {
+        // Hint: initialize with Catalog::new().
         todo!()
     }
 
-    /// Execute a SQL query and return result chunks.
+    /// Execute a SQL query string and return the result chunks.
+    ///
+    /// Internally performs the full pipeline:
+    /// 1. **Lex** the SQL string into tokens.
+    /// 2. **Parse** the tokens into an AST.
+    /// 3. **Bind** the AST against the catalog (name resolution, type checking).
+    /// 4. **Plan** the bound logical plan into physical pipelines.
+    /// 5. **Execute** the pipelines and collect the result.
     pub fn execute_sql(&mut self, sql: &str) -> Result<Vec<DataChunk>, String> {
+        // Hint: call Parser::parse_sql(sql), then Binder::new(&self.catalog).bind(&stmt),
+        // then execute_plan(&plan, &self.catalog). Map BindError/ParseError to String.
         todo!()
     }
 
-    /// Get a reference to the catalog.
+    /// Get a shared reference to the catalog (for inspection / read-only queries).
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
     }
 
-    /// Get a mutable reference to the catalog.
+    /// Get a mutable reference to the catalog (for DDL operations, data loading).
     pub fn catalog_mut(&mut self) -> &mut Catalog {
         &mut self.catalog
     }
