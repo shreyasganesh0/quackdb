@@ -83,6 +83,9 @@ fn race_rank(times: &[f64]) -> Vec<usize> {
 - **Returning results in partition order instead of original row order.** After partitioning and sorting within partitions, the results must be mapped back to the original row positions. Keep track of original indices.
 - **Off-by-one errors in frame bound resolution.** "UnboundedPreceding to CurrentRow" means indices [0, current_row] inclusive. "CurrentRow to CurrentRow" means just the single row. Check your range calculations carefully.
 
+## Where to Start
+Start with `RowNumber` — it is the simplest window function (just counting). Then implement `Rank` and `DenseRank` (compare adjacent rows). The aggregate windows (Sum, Avg) use the same frame-resolution logic, so implement one and the rest follow the pattern.
+
 ## Step-by-Step Implementation Order
 1. Start with `create_window_function()` -- match on WindowFunctionType and return the appropriate struct boxed as `Box<dyn WindowFunction>`; each function type needs a struct implementing the trait.
 2. Implement RowNumber's `evaluate()` -- simply assign 1, 2, 3... based on position in the ordered partition.

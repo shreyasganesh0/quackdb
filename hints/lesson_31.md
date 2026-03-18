@@ -76,6 +76,9 @@ fn find_drawer(name: &str, drawer_labels: &[char]) -> usize {
 - **Non-deterministic hashing across calls.** If your hash function produces different results for the same value on different calls, the same row could end up in different partitions on insert vs. pruning lookup. Use a consistent hasher.
 - **Forgetting to handle empty partitions.** After partitioning, some buckets may be empty. Your scan and repartition logic must handle empty DataChunks gracefully.
 
+## Where to Start
+Start with `RoundRobin` partitioning — it is trivial (modulo counter). Then implement `Hash` partitioning (hash + modulo). `Range` is the most complex. Build `PartitionedTable` methods as you go, testing with the simplest scheme first.
+
 ## Step-by-Step Implementation Order
 1. Start with `Partitioner::num_partitions()` -- match on the scheme: Hash and RoundRobin carry num_partitions directly; Range has boundaries.len() + 1 partitions.
 2. Implement `partition_for_row()` -- extract the partition key value(s) from the chunk at the given row, then route: hash the value and modulo for Hash, compare against boundaries for Range, use a counter modulo for RoundRobin.

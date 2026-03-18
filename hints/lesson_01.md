@@ -94,6 +94,9 @@ impl ContainerYard {
 }
 ```
 
+## Where to Start
+Start with `Arena::new()` and `alloc()` — they are the heart of the lesson and have the clearest tests. Once basic allocation works, add alignment. Then tackle `ArenaString` (the unsafe part). Leave `ScopedArena` for last.
+
 ## Step-by-Step Implementation Order
 1. Start with `Arena::new()` and `with_block_size()` -- initialize empty blocks vec, offset at 0, store the block size
 2. Implement `Arena::default()` -- delegate to `new()` so a fresh arena has zero blocks and zero bytes allocated

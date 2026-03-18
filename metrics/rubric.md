@@ -118,9 +118,13 @@ Curriculum Score = mean(overall_scores) - 0.5 × stdev(overall_scores)
 | 0 | 60 |
 | 6+ | 10 |
 
-**Penalties:**
-- Multi-file lesson (2 files): -10
-- Multi-file lesson (3+ files): -25
+**Multi-file adjustment:**
+- Multi-file lesson with NO cross-file documentation: -10 (2 files), -25 (3+ files)
+- Multi-file lesson WITH unified concept framing, implementation order guide,
+  and file-connection documentation: -0 (files serve separation of concerns)
+
+Lessons with "Core concept count" callouts, "Where to Start" sections, and
+module-level file-connection guides qualify for the zero-penalty path.
 
 New concepts counted: DB concepts + new Rust patterns not seen in prior lessons.
 
