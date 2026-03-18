@@ -1,63 +1,182 @@
-# QuackDB
+# 🦆 QuackDB
 
-Build a distributed analytical database from scratch in Rust.
+**Build a distributed analytical database from scratch in Rust.**
 
-QuackDB is a Boot.dev-style tutorial with 35 lessons that walks you through building a complete OLAP database engine — from arena allocators to distributed query execution. Each lesson has a pre-written test suite. You read the tests, understand the API, then implement until they pass.
+You're about to build something real. Not a toy, not a tutorial that holds your hand through copy-paste — a genuine OLAP database engine with arena allocators, columnar storage, vectorized execution, a SQL frontend, query optimization, MVCC transactions, and distributed query processing. In 35 lessons, you'll go from an empty `todo!()` to a working distributed analytical database. Every line of core logic is yours.
 
-By completion, you'll have a working distributed analytical database demonstrating deep systems expertise.
+No prior Rust experience required. No database background assumed. Just bring curiosity and a willingness to get stuck, then unstuck. That's how real learning works.
+
+## Your First 5 Minutes
+
+```bash
+# 1. Clone and enter the project
+git clone <your-fork-url> && cd quackdb
+
+# 2. Run the first lesson's tests — they WILL fail. That's the point.
+make lesson LESSON=01
+
+# You'll see something like:
+#   thread 'test_arena_allocate' panicked at 'not yet implemented'
+#   ❌ Tests failed — this is expected! Your job is to make them pass.
+
+# 3. Read the hint to understand what you're building
+make hint LESSON=01
+
+# 4. Open the source file and replace the todo!() stubs with real code
+#    Lesson 01 → src/arena.rs
+
+# 5. Run the test again
+make lesson LESSON=01
+
+# When you see "test result: ok" — you've completed your first lesson! ✅
+```
+
+That's the whole loop: **run → fail → read → implement → pass**. Repeat 35 times and you've built a database.
+
+## How to Approach Each Lesson
+
+```
+┌─────────────────────────────────────────────────┐
+│  1. Run the test          make lesson LESSON=NN │
+│         ↓                                       │
+│  2. See it fail ❌        Read the error output  │
+│         ↓                                       │
+│  3. Read the hint         make hint LESSON=NN   │
+│         ↓                                       │
+│  4. Read the test file    tests/lesson_NN_*.rs  │
+│         ↓                                       │
+│  5. Implement             Edit src/ files       │
+│         ↓                                       │
+│  6. Run again             make lesson LESSON=NN │
+│         ↓                                       │
+│  7. Pass ✅               Move to next lesson    │
+└─────────────────────────────────────────────────┘
+```
+
+**Tip:** The test file is your specification. Read it carefully — it tells you exactly what your code needs to do. The hint file explains *how* to think about it.
+
+## What You'll Learn
+
+By the end of QuackDB, you won't just "know about" databases. You'll have built:
+
+- **A memory arena** — manual allocation strategy used in real databases (L01)
+- **A columnar type system** — the foundation of every OLAP engine (L02-L04)
+- **Compression algorithms** — RLE, dictionary, bitpacking, delta encoding (L05-L08)
+- **A storage engine** — page layouts, buffer pool management, columnar files (L09-L12)
+- **A vectorized execution engine** — pipelines, hash joins, sort-merge joins (L13-L19)
+- **A SQL parser from scratch** — lexer, Pratt parser, AST (L20-L21)
+- **A query planner** — logical plans, catalog, binder, physical plans (L22-L24)
+- **A query optimizer** — rule-based and cost-based with join reordering (L25-L26)
+- **Transactions** — MVCC and write-ahead logging (L27-L28)
+- **Parallel execution** — morsel-driven parallelism, window functions (L29-L30)
+- **Distributed queries** — partitioning, distributed planning, shuffle (L31-L33)
+- **Advanced techniques** — adaptive execution, SIMD-style vectorization (L34-L35)
+
+These are skills that transfer directly to working on systems like DuckDB, ClickHouse, DataFusion, and Snowflake.
 
 ## Prerequisites
 
-- Rust (stable toolchain)
-- `make`
+- **Rust** (stable toolchain) — [install here](https://rustup.rs/)
+- **make** — already installed on most systems
+
+Don't know Rust yet? That's fine. Each lesson has a hint file that teaches exactly the Rust concepts you need, right when you need them. See [New to Rust?](#new-to-rust) below.
 
 ## Quick Start
 
+**Step 1: Verify your setup**
+
 ```bash
-# Check that lesson 01 compiles
 make check LESSON=01
-
-# Run lesson 01 tests (they'll fail with todo!())
-make lesson LESSON=01
-
-# Implement src/arena.rs, then run again
-make lesson LESSON=01
-
-# Run all tests through lesson 04
-make upto LESSON=04
-
-# Run the full suite (only passes when all 35 lessons are complete)
-make all
 ```
 
-## How It Works
+This checks that lesson 01 compiles. If you see no errors, you're good.
 
-- Each lesson maps to one or more source files with `todo!()` stubs
-- Test files in `tests/` contain complete assertions — your job is to make them pass
-- Lessons are feature-gated (`lesson01` through `lesson35`), each enabling all prior lessons
-- Only the code needed for a given lesson is compiled
+**Step 2: Run your first lesson**
+
+```bash
+make lesson LESSON=01
+```
+
+You'll see test failures with `not yet implemented` — that's the `todo!()` macro telling you where to write code.
+
+**Step 3: Implement and iterate**
+
+Open `src/arena.rs`, replace the `todo!()` stubs with your implementation, and run the test again. Keep going until all tests pass.
+
+**Step 4: Move forward**
+
+```bash
+make lesson LESSON=02   # Next lesson
+make upto LESSON=04     # Run all tests through lesson 04
+make progress           # See how far you've gotten
+```
+
+**Step 5: When you've done all 35**
+
+```bash
+make all                # Victory lap — runs the entire test suite 🦆
+```
+
+## Track Your Progress
+
+```bash
+make progress
+```
+
+This scans all 35 lessons and shows you which ones compile and pass:
+
+```
+🦆 QuackDB Progress
+✅ Lesson 01 — Arena Allocator
+✅ Lesson 02 — Data Types
+✅ Lesson 03 — Columnar Vectors
+❌ Lesson 04 — Data Chunks          ← you are here
+   Lesson 05 — Run-Length Encoding
+   ...
+```
+
+You can also jump straight to your next unfinished lesson:
+
+```bash
+make next    # Finds and runs the first failing lesson
+```
 
 ## New to Rust?
 
 Each lesson includes a hint file that teaches the Rust concepts you'll need.
 
 ```bash
-# View hints for lesson 01
-make hint LESSON=01
-
-# List all concept reference files
-make concepts
-
-# Read a specific concept
-cat hints/concepts/ownership_and_borrowing.md
+make hint LESSON=01       # View hints for lesson 01
+make concepts             # List all concept reference files
+cat hints/concepts/ownership_and_borrowing.md   # Read a specific concept
 ```
 
-- **`hints/lesson_NN.md`** — what you're building, which Rust concepts apply,
-  key patterns with examples, and a step-by-step implementation order
-- **`hints/concepts/`** — self-contained reference files for each Rust concept,
-  with examples. Assumes you know another language but not Rust.
+- **`hints/lesson_NN.md`** — what you're building, which Rust concepts apply, key patterns with examples, and a step-by-step implementation order
+- **`hints/concepts/`** — self-contained reference files for each Rust concept, with examples. Assumes you know another language but not Rust.
 
 The hints never give away the solution. If you already know Rust, skip them.
+
+## Getting Stuck?
+
+**Common Rust errors and what they mean:**
+
+| Error | What's happening | Fix |
+|-------|-----------------|-----|
+| `not yet implemented` | You hit a `todo!()` | Replace it with real code |
+| `borrow of moved value` | You used a value after giving it away | Clone it, or restructure to use references |
+| `cannot borrow as mutable` | You need `&mut` but only have `&` | Check function signatures; you may need `mut` |
+| `lifetime may not live long enough` | A reference outlives its source | Look at the hint file's lifetime section |
+| `mismatched types` | Return type doesn't match | Check what the test expects |
+
+**General tips:**
+
+1. **Read the test file first.** It's the spec. Understand what the test calls and what it asserts.
+2. **Read the hint file.** It won't give the answer, but it explains the approach.
+3. **Check that earlier lessons still pass:** `make upto LESSON=NN`
+4. **Compile early, compile often:** `make check LESSON=NN` is faster than a full test run.
+5. **Use `cargo clippy`** for idiomatic Rust suggestions.
+
+**Still stuck?** Look at the test assertions line by line. Each one tells you something specific your implementation needs to satisfy. Work through them one at a time.
 
 ## Curriculum
 
@@ -163,7 +282,7 @@ No external crates for core database logic. The only allowed dependencies are:
 ```
 quackdb/
 ├── Cargo.toml          # Features: lesson01-lesson35
-├── Makefile            # make lesson/upto/all/check
+├── Makefile            # make lesson/upto/all/check/progress/next
 ├── src/
 │   ├── lib.rs          # Module declarations (feature-gated)
 │   ├── arena.rs        # L01
@@ -182,6 +301,7 @@ quackdb/
 │   ├── simd.rs         # L35
 │   └── db.rs           # L24+ (top-level facade)
 ├── tests/              # 35 test files (one per lesson)
+├── hints/              # Hint files and Rust concept references
 └── benches/
     └── micro.rs
 ```
