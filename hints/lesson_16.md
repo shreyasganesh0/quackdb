@@ -3,6 +3,9 @@
 ## What You're Building
 A hash-based aggregation engine that groups rows by key columns and computes aggregate functions (SUM, COUNT, AVG, MIN, MAX) per group. The AggregateFunction trait defines the lifecycle of an aggregate computation. The AggregateHashTable maps serialized group keys to vectors of aggregate states. The HashAggregateOperator buffers all input during execution, then produces grouped results during finalization. This is how databases handle GROUP BY clauses efficiently.
 
+## Concept Recap
+Building on Lessons 13-15: You'll use `DataChunk` and `Vector` for input/output data, `Expression` and `ExpressionExecutor` for evaluating group-by and aggregate expressions, and the `Pipeline` / `PhysicalOperator` framework to integrate aggregation as a pipeline-breaking operator that buffers all input before producing output.
+
 ## Rust Concepts You'll Need
 - [Trait Objects](../concepts/trait_objects.md) -- `create_aggregate` returns `Box<dyn AggregateFunction>`, allowing polymorphic dispatch over different aggregate implementations
 - [Collections](../concepts/collections.md) -- `HashMap<Vec<u8>, Vec<AggregateState>>` maps byte-serialized group keys to per-group state
@@ -11,7 +14,7 @@ A hash-based aggregation engine that groups rows by key columns and computes agg
 ## Key Patterns
 
 ### Trait Object Factory
-A factory function returns different concrete types behind a common trait object, selected at runtime by an enum discriminant.
+A factory function returns different concrete types behind a common trait object, selected at runtime by an enum discriminant. Think of it like a vending machine -- you press a button (the enum variant), and the machine gives you a different product (the trait object) depending on which button you pressed.
 
 ```rust
 // Analogy: a shape area calculator factory (NOT the QuackDB solution)
@@ -46,7 +49,7 @@ fn create_calc(ct: CalcType) -> Box<dyn AreaCalc> {
 ```
 
 ### Hash Table with Byte-Serialized Keys
-When group keys can be multiple columns of varying types, serialize them into a `Vec<u8>` for use as HashMap keys. This avoids needing a custom hash for every combination of types.
+When group keys can be multiple columns of varying types, serialize them into a `Vec<u8>` for use as HashMap keys. Think of it like creating a composite fingerprint -- you combine information from multiple fields into a single unique identifier that can be looked up efficiently.
 
 ```rust
 // Analogy: caching computed results by composite key (NOT the QuackDB solution)
@@ -66,6 +69,14 @@ let key = serialize_key(&["region_a", "2025"]);
 cache.entry(key).or_insert(0.0);
 ```
 
+### Aggregate State Lifecycle
+Each aggregate function follows a three-phase lifecycle: initialize state, update with each incoming value, finalize to produce the result. Think of it like taking an exam -- you start with a blank answer sheet (init), fill in answers as you go (update), then submit and get a final grade (finalize).
+
+## Common Mistakes
+- Forgetting to handle global aggregation (no GROUP BY). When `group_types` is empty, you must still create exactly one group to hold the aggregate results. Use an empty key `Vec::new()` so there is one entry in the HashMap.
+- Not skipping NULL values during aggregate updates. SQL aggregates ignore NULLs: `SUM(10, NULL, 30)` is 40, not NULL.
+- Getting AVG wrong by forgetting to track both sum and count. AVG is sum/count, and you need both pieces of state.
+
 ## Step-by-Step Implementation Order
 1. Start with `AggregateState::new()` -- initialize value to Null, count to 0, sum to 0.0
 2. Implement `create_aggregate()` -- match on AggregateType and return the appropriate `Box<dyn AggregateFunction>`; each variant needs its own struct implementing the trait
@@ -73,8 +84,16 @@ cache.entry(key).or_insert(0.0);
 4. Implement `AggregateHashTable::new()` -- store types and initialize an empty HashMap
 5. Implement `add_chunk()` -- for each row, serialize the group columns into a `Vec<u8>` key, look up or create the entry, then call update on each aggregate state
 6. Implement `finalize()` -- iterate over all groups, call finalize on each aggregate state, and assemble the results into DataChunks
-7. Watch out for global aggregation (empty group_types) -- use a single empty key so there is exactly one group
+7. Handle the `group_count()` method -- return the number of distinct keys in the HashMap
+8. Watch out for global aggregation (empty group_types) -- use a single empty key so there is exactly one group
+9. Handle the empty input case -- aggregating zero rows should produce zero groups (except for global aggregation where behavior depends on the tests)
 
 ## Reading the Tests
-- **`test_aggregate_sum`** creates a hash table with one group column (Int32) and one aggregate (Sum on Int64). It calls `add_chunk` with explicit group and aggregate column indices `(&[0], &[1])`. The assertion checks that group 1 sums to 90 and group 2 sums to 60. This reveals that `add_chunk` must use column indices to extract the right data.
-- **`test_aggregate_global`** passes empty group columns `(&[], &[0, 0])` and asserts `group_count() == 1`. This confirms your implementation must handle the "no GROUP BY" case as a single global group.
+- **`test_aggregate_sum`** creates a hash table with one group column (Int32) and one aggregate (Sum on Int64). It calls `add_chunk` with column indices `(&[0], &[1])`. The assertion checks that group 1 sums to 90 and group 2 sums to 60. This reveals that `add_chunk` must use column indices to extract the right data.
+- **`test_aggregate_count`** groups by column 0 and counts column 1. Group 1 has 3 rows, group 2 has 2. The test handles both Int64 and UInt64 result types for count. This confirms COUNT tallies the number of non-null rows per group.
+- **`test_aggregate_min_max`** computes both MIN and MAX simultaneously on the same column, per group. Group 1 has min=10, max=50; group 2 has min=20, max=40. This tests that multiple aggregates can run in parallel on the same hash table.
+- **`test_aggregate_avg`** computes average of `[10.0, 20.0, 30.0]` for a single group, expecting 20.0. This confirms your AVG implementation correctly divides the running sum by the count.
+- **`test_aggregate_global`** passes empty group columns `(&[], &[0, 0])` and asserts `group_count() == 1`. This confirms your implementation must handle the "no GROUP BY" case as a single global group with an empty serialized key.
+- **`test_aggregate_empty`** feeds an empty chunk and asserts 0 groups in the output. This ensures aggregation of zero rows does not produce spurious groups.
+- **`test_aggregate_hash_table_resize`** inserts 1000 distinct group keys and asserts `group_count() == 1000`. This validates that your HashMap handles many groups without data loss due to collisions or capacity issues.
+- **`test_aggregate_with_nulls`** adds rows `[10, NULL, 30]` for one group and asserts SUM = 40. This is the critical NULL-skipping test: SUM must ignore NULL values rather than treating them as zero or propagating NULL.
