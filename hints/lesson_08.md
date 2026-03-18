@@ -79,3 +79,11 @@ Your `auto_compress` and `decompress` functions should match on `CompressionAlgo
 - Look for a round-trip test that calls `auto_compress` on a data sample and then `decompress` on the result, asserting the output equals the input. This tells you the full pipeline must be consistent.
 - Look for a test that calls `CompressionFrame::to_bytes()` followed by `from_bytes()` and checks that all header fields survive the round-trip. Pay attention to whether the test checks `data.len()` against `compressed_size`.
 - Any test that calls `pick_algorithm` on hand-crafted `CompressionStats` reveals the expected decision boundaries (e.g., constant data should yield `Rle`).
+
+## What Comes Next
+With compression complete, Part III builds the **storage engine** — the layer that
+persists data to disk. Lesson 09 introduces fixed-size Pages, the fundamental I/O
+unit. Your `CompressionFrame` from this lesson will be used to compress column data
+before writing it into pages. The buffer pool (L10) caches pages in memory, and the
+columnar file writer/reader (L11-L12) uses your frame format to produce Parquet-like
+files.

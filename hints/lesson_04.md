@@ -94,3 +94,11 @@ impl fmt::Display for Table {
 - **`test_chunk_append_row`** appends 3 rows with Int32 and Int64 values, then reads each cell back via `chunk.column(0).get_value(i)`. This confirms that append_row must write to column index `i` at row position equal to the current count, then increment.
 - **`test_chunk_slice`** appends 10 rows, slices at offset=2 length=5, and verifies the sliced chunk starts at value 2 and has 5 rows. Your slice must produce a new independent chunk.
 - **`test_chunk_collection`** appends two chunks (2 rows + 1 row) and checks total_count is 3. Simple accumulation.
+
+## What Comes Next
+You now have the complete in-memory data model: Arena (memory), Types (schema),
+Vectors (columns), and Chunks (row groups). Part II tackles **compression** —
+how to shrink these columnar vectors for efficient storage. Lesson 05 starts with
+Run-Length Encoding, which directly compresses the `Vector` data buffers you just
+built. The `DataChunk` you created here becomes the primary unit that flows through
+the entire query engine starting in Part IV.

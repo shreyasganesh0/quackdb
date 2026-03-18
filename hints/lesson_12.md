@@ -76,3 +76,11 @@ When `projection` is `Some(&[0, 2])`, only read column chunks at indices 0 and 2
 ## Reading the Tests
 - Look for a round-trip test that writes data with `ColumnarFileWriter`, wraps the resulting bytes in a `Cursor`, opens it with `ColumnarFileReader::open()`, and asserts the schema and row counts match. This confirms your footer reading logic.
 - Look for a test that uses `scan` with predicates and checks that fewer row groups are read than exist in the file. The assertions on the returned chunks tell you that pruned groups must be entirely absent from results.
+
+## What Comes Next
+You now have a complete storage engine: pages, buffer pool, and columnar file I/O.
+Part IV shifts to **vectorized execution** — processing data in batches. Lesson 13
+introduces expression evaluation over the `DataChunk` type you've been building.
+The `Vector` and `DataChunk` types from Part I become the data currency that flows
+through every operator. The predicate pushdown pattern from this lesson reappears
+in the query optimizer (L25).

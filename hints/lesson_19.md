@@ -75,3 +75,11 @@ fn k_way_merge_lists(runs: &[Vec<i32>]) -> Vec<i32> {
 - **`test_min_heap`** pushes [5, 2, 8, 1, 4] and pops [1, 2, 4, 5, 8]. This confirms your sift_up and sift_down produce correct min-heap ordering.
 - **`test_k_way_merge`** creates three sorted runs ([1,4,7], [2,5,8], [3,6,9]) and expects merged output [1..9]. This verifies your merge correctly interleaves multiple runs.
 - **`test_top_n`** expects the 3 smallest values [1, 2, 4] from 5 unsorted rows, confirming TopN returns N smallest in sorted order.
+
+## What Comes Next
+You've built a complete vectorized execution engine: expressions, pipelines, scans,
+filters, joins, aggregations, and sorting. Part V adds the **SQL frontend** — the
+layer that turns human-readable queries into the operator pipelines you just built.
+Lesson 20 starts with lexing SQL text into tokens. By Lesson 24, you'll connect the
+parser through the planner to your execution operators, achieving end-to-end SQL
+query processing.

@@ -1,7 +1,18 @@
 # Lesson 20: SQL Lexer
 
 ## What You're Building
-A lexer that converts a raw SQL string into a stream of typed tokens. The Keyword enum has 90+ variants for SQL reserved words. The Token enum represents literals, identifiers, keywords, operators, and punctuation. The Lexer struct walks through the input character by character, tracking line and column for error reporting. This is the first stage of SQL compilation -- every query must be tokenized before the parser can process it.
+A lexer that converts a raw SQL string into a stream of typed tokens. The Keyword enum
+has 90+ variants for SQL reserved words. The Token enum represents literals, identifiers,
+keywords, operators, and punctuation. The Lexer struct walks through the input character
+by character, tracking line and column for error reporting. This is the first stage of
+SQL compilation -- every query must be tokenized before the parser can process it.
+
+**Connection to Part IV:** In the previous 7 lessons, you built a complete execution
+engine that processes `DataChunk`s through operator pipelines. Now you'll build the
+SQL frontend that *generates* those pipelines from human-readable queries. The lexer
+is the first step: turning `"SELECT * FROM users"` into tokens that the parser (L21)
+can structure into an AST, which the planner (L22-L24) converts into the `Pipeline`
+and `PhysicalOperator` types you already know.
 
 ## Rust Concepts You'll Need
 - [String Types](../concepts/string_types.md) -- input stored as `Vec<char>` for indexed access; identifiers produced as `String`

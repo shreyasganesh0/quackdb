@@ -92,3 +92,11 @@ fn merge_feeds(receivers: &[mpsc::Receiver<String>]) -> Vec<String> {
 ## Reading the Tests
 - **`test_exchange_channel`** sends a 3-row chunk through a channel, closes the sender, then receives. It asserts the received chunk has 3 rows and a second recv returns None. This validates the sentinel-based termination protocol.
 - **`test_gather_operator`** creates two channels, sends one chunk through each, closes both senders, then uses GatherOperator to collect all chunks. It expects a total of 4 rows (2 + 2), confirming the gather correctly drains multiple receivers.
+
+## What Comes Next
+You've built a distributed query execution framework. Part IX wraps up with two
+**advanced topics** that push performance further. Lesson 34 introduces adaptive
+execution — using runtime statistics (Bloom filters, cardinality estimates) to adjust
+query strategies on the fly. Lesson 35 closes with SIMD-style vectorization, writing
+tight loops that the compiler auto-vectorizes for maximum throughput. These lessons
+tie together everything you've built into a production-grade analytical database.

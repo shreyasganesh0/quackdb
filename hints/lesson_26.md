@@ -89,3 +89,11 @@ impl DeliveryCost {
 - **`test_column_statistics_selectivity`** checks that `equality_selectivity()` returns roughly `1/100 = 0.01` for 100 distinct values, and that `selectivity(">", 500.0)` for a [0, 1000] range returns roughly 0.5. This pins down your selectivity formulas.
 - **`test_relation_set_subsets`** creates a set `0b111` (3 elements) and expects `subsets()` to return exactly 7 non-empty subsets. This confirms the bitmask enumeration produces all `2^n - 1` subsets.
 - **`test_cost_model_sort`** verifies that sorting 10000 rows costs more than sorting 1000 rows, confirming your sort cost is monotonically increasing.
+
+## What Comes Next
+With query optimization complete, Part VII tackles **transactions and durability** —
+how to make the database reliable under concurrent access and crashes. Lesson 27
+implements MVCC (Multi-Version Concurrency Control) for snapshot isolation, reusing
+the `DataChunk` and `ScalarValue` types you know well. Lesson 28 adds write-ahead
+logging for crash recovery. These lessons shift focus from performance to correctness
+guarantees.

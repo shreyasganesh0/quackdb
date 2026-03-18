@@ -108,3 +108,11 @@ fn recover_list(log: &[(u64, &str)]) -> (Vec<u64>, Vec<u64>) {
 - **`test_wal_record_roundtrip`** serializes an `Insert` record with mixed scalar values, deserializes it, and checks equality. This is your first validation target -- get `to_bytes`/`from_bytes` working correctly.
 - **`test_wal_write_read`** writes three records (Begin, Insert, Commit) via `WalWriter`, then reads them back with `WalReader` and checks the count and record types. This confirms that your framing (how entries are delimited in the byte stream) is correct.
 - **`test_recovery_uncommitted`** writes a Begin and Insert but no Commit, simulating a crash. It expects `recover()` to place txn 1 in `aborted` (not `committed`) and populate `undo_ops`. This validates the core recovery logic.
+
+## What Comes Next
+With transactions and durability in place, Part VIII explores **parallelism and
+distribution** — scaling the database across CPU cores and machines. Lesson 29
+introduces morsel-driven parallelism using `Arc<Mutex<>>` and thread spawning. The
+`Pipeline` from L14 and `PhysicalOperator` trait become the foundation for parallel
+execution. Lessons 31-33 extend to distributed query processing with data partitioning,
+exchange operators, and shuffling between simulated nodes.

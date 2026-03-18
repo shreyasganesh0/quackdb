@@ -74,3 +74,12 @@ For a table scan, you fetch the stored `Vec<DataChunk>` from the catalog and wra
 - **`test_e2e_select_all`** sets up a database with 4 rows and runs `SELECT * FROM users`, checking that 4 rows come back. This validates the full path: parse -> bind -> plan -> physical -> execute.
 - **`test_e2e_where`** runs `SELECT * FROM users WHERE age > 28` and expects 2 rows (alice at 30 and charlie at 35). This confirms that filter operators correctly evaluate predicates against actual data values.
 - **`test_e2e_join`** creates two tables and runs an INNER JOIN, expecting only matching rows. This tests that the pipeline breaker logic correctly materializes both sides before joining.
+
+## What Comes Next
+You now have a working end-to-end SQL database: parsing, binding, planning, and
+executing queries. But the plans are naive — they execute whatever the parser
+produces without optimization. Part VI introduces the **query optimizer**, which
+rewrites logical plans into more efficient equivalents. Lesson 25 applies rule-based
+transformations (predicate pushdown, constant folding), and Lesson 26 adds cost-based
+optimization with join ordering. The `LogicalPlan` tree from L22 is exactly what the
+optimizer transforms.

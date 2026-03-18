@@ -83,3 +83,10 @@ fn read_tag(ptr: *const u8, len: usize) -> &str {
 - **`test_arena_alignment`** allocates 7 bytes (unaligned), then 16 bytes with align=8, then 32 bytes with align=16. It checks the returned pointer modulo the alignment. This tells you your padding math must produce correctly aligned addresses.
 - **`test_arena_typed_alloc`** allocates an `i32` and an `f64`, writes to them, and later reads the `i32` through a raw pointer. This confirms arena memory remains stable across allocations -- do not reallocate or move existing blocks.
 - **`test_scoped_arena`** creates a scope, allocates inside it, and expects the parent arena to be usable after the scope ends. The scope captures the parent by `&'a mut Arena`.
+
+## What Comes Next
+This arena allocator is the memory foundation for the entire database. In Lesson 02,
+you'll build the **type system** (LogicalType, ScalarValue) that defines what kinds
+of data QuackDB can store. Then Lesson 03 creates **columnar vectors** that use byte
+buffers (similar to the arena's blocks) to store typed column data efficiently. Every
+subsequent lesson builds on these first four foundational types.
