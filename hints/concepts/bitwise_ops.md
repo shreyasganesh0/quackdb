@@ -2,6 +2,34 @@
 
 > **Prerequisites:** None - this is a starting concept
 
+## Quick Reference
+- `&` (AND), `|` (OR), `^` (XOR), `!` (NOT), `<<` (left shift), `>>` (right shift)
+- Set a bit: `bits |= 1u64 << i`; Clear a bit: `bits &= !(1u64 << i)`
+- Test a bit: `(bits >> i) & 1 == 1`
+- `val.count_ones()` = popcount, `val.trailing_zeros()` = find first set bit
+- Both operands must have the same integer type -- no implicit widening
+
+## Common Compiler Errors
+
+**`error[E0308]: mismatched types -- expected 'u32', found 'u8'`**
+You mixed integer types in a bitwise operation.
+Fix: explicitly cast with `as`: `(small as u32) & big`.
+
+**`error[E0600]: cannot apply unary operator '!' to type 'bool'`** (unexpected result)
+`!` on integers is bitwise NOT, on `bool` is logical NOT. They look the same but do very different things.
+Fix: ensure you are operating on the correct type. `!0u8` = `255`, `!true` = `false`.
+
+**thread panicked at 'attempt to shift left with overflow'**
+In debug mode, shifting by >= the bit width panics.
+Fix: use `.wrapping_shl(n)` or `.checked_shl(n)` for defined behavior.
+
+## When You'll Use This
+- **Lesson 3 (Vectors):** `ValidityMask` uses bit shifting and masking on u64 words
+- **Lesson 7 (Bitpack/Delta):** shifting, masking, and packing bits into byte buffers
+- **Lesson 26 (Cost Optimizer):** `RelationSet` uses u64 bitmask for set operations
+- **Lesson 34 (Adaptive Execution):** Bloom filters set and test individual bits
+- **Lesson 35 (SIMD):** validity bitmasks use u64 arrays
+
 ## What This Is
 
 Bitwise operations manipulate individual bits within integer values. They are fundamental to systems programming and appear throughout database engines: bitmasks track which slots in a page are occupied, bitpacking squeezes multiple small values into a single integer for compact storage, and bit flags encode sets of boolean options in a single field.
@@ -204,6 +232,12 @@ let big: u32 = 0x100;
 // let result = small & big;          // ERROR: mismatched types
 let result = (small as u32) & big;    // OK
 ```
+
+## Related Concepts
+
+- [Type Conversions](./type_conversions.md) -- `as` casts are needed for integer type mismatches in bitwise ops
+- [Slices and Bytes](./slices_and_bytes.md) -- byte slices are often manipulated with bitwise operations
+- [Unsafe Rust](./unsafe_rust.md) -- low-level bit manipulation sometimes accompanies unsafe memory access
 
 ## Quick Reference
 

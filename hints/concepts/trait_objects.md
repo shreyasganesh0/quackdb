@@ -2,6 +2,36 @@
 
 > **Prerequisites:** [traits_and_derive](./traits_and_derive.md), [box_and_recursive_types](./box_and_recursive_types.md)
 
+## Quick Reference
+- `&dyn Trait` -- borrowed reference to a trait object (dynamic dispatch)
+- `Box<dyn Trait>` -- owned, heap-allocated trait object
+- `Vec<Box<dyn Trait>>` -- collection of mixed concrete types implementing the same trait
+- `impl Trait` -- static dispatch (monomorphized, one concrete type per call site)
+- Use `dyn Trait` when you need heterogeneous collections; use `impl Trait` for performance
+
+## Common Compiler Errors
+
+**`error[E0038]: the trait 'X' cannot be made into an object`**
+The trait has methods that return `Self` or use generic type parameters.
+Fix: traits with `fn clone(&self) -> Self` or `fn foo<T>()` are not object-safe. Refactor to remove `Self` return types or generics from the trait, or use a workaround like `fn clone_box(&self) -> Box<dyn MyTrait>`.
+
+**`error[E0277]: 'dyn Trait' cannot be sent between threads safely`**
+Your trait object needs `Send` for use across threads.
+Fix: use `Box<dyn Trait + Send>` or `Box<dyn Trait + Send + Sync>`.
+
+**`error[E0308]: expected 'Box<dyn Trait>', found 'ConcreteType'`**
+You returned a concrete type where a boxed trait object was expected.
+Fix: wrap the value in `Box::new(concrete_value)`.
+
+## When You'll Use This
+- **Lesson 14 (Pipelines):** `Box<dyn DataSource>` and `Box<dyn PhysicalOperator>` for runtime polymorphism
+- **Lesson 15 (Scan/Filter/Project):** `Box<dyn DataSource>` and `Box<dyn PhysicalOperator>` in pipelines
+- **Lesson 16 (Hash Aggregate):** `create_aggregate` returns `Box<dyn AggregateFunction>`
+- **Lesson 24 (Physical Plan):** `Box<dyn DataSource>` and `Box<dyn PhysicalOperator>` for heterogeneous operators
+- **Lesson 25 (Rule Optimizer):** `Vec<Box<dyn OptimizerRule>>` stores heterogeneous rule types
+- **Lesson 29 (Morsel-Parallel):** `Box<dyn PhysicalOperator + Send>` for per-thread operators
+- **Lesson 30 (Window Functions):** `Box<dyn WindowFunction>` from a factory function
+
 ## What This Is
 
 When you write `fn process(item: &impl Summarizable)` in Rust, the compiler generates a
@@ -53,12 +83,14 @@ fn print_area_dynamic(s: &dyn Shape) {
 }
 
 // Storing mixed types in a Vec
-let shapes: Vec<Box<dyn Shape>> = vec![
-    Box::new(Circle { radius: 3.0 }),
-    Box::new(Rect { w: 4.0, h: 5.0 }),
-];
-for s in &shapes {
-    println!("{} has area {:.2}", s.name(), s.area());
+fn main() {
+    let shapes: Vec<Box<dyn Shape>> = vec![
+        Box::new(Circle { radius: 3.0 }),
+        Box::new(Rect { w: 4.0, h: 5.0 }),
+    ];
+    for s in &shapes {
+        println!("{} has area {:.2}", s.name(), s.area());
+    }
 }
 ```
 
@@ -96,11 +128,14 @@ fn run_pipeline(stages: &[Box<dyn Stage>], mut data: Vec<u8>) -> Vec<u8> {
     data
 }
 
-let pipeline: Vec<Box<dyn Stage>> = vec![
-    Box::new(Compress),
-    Box::new(Encrypt { key: 0xAB }),
-];
-let result = run_pipeline(&pipeline, vec![72, 0, 101, 0, 108]);
+fn main() {
+    let pipeline: Vec<Box<dyn Stage>> = vec![
+        Box::new(Compress),
+        Box::new(Encrypt { key: 0xAB }),
+    ];
+    let result = run_pipeline(&pipeline, vec![72, 0, 101, 0, 108]);
+    println!("{:?}", result);
+}
 ```
 
 ### Pattern 2: Returning Different Types from a Function
@@ -168,6 +203,13 @@ impl EventBus {
    get the concrete type back unless the trait extends `std::any::Any`. This is different from
    Java where you can always cast down with `instanceof`. If you need downcasting, add
    `as_any()` helper methods or use the `downcast-rs` crate.
+
+## Related Concepts
+
+- [Traits and Derive](./traits_and_derive.md) -- traits define the interface used by trait objects
+- [Box and Recursive Types](./box_and_recursive_types.md) -- `Box<dyn Trait>` combines boxing with dynamic dispatch
+- [Generics](./generics.md) -- `impl Trait` (static dispatch) is the alternative to `dyn Trait`
+- [Closures](./closures.md) -- closures are often stored as `Box<dyn Fn(...)>`
 
 ## Quick Reference
 

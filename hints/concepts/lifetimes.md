@@ -2,6 +2,34 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md)
 
+## Quick Reference
+- `'a` is a lifetime parameter -- a label for how long a reference is valid
+- `fn foo<'a>(x: &'a str) -> &'a str` means the return borrows from `x`
+- `struct Foo<'a> { field: &'a str }` means `Foo` borrows data and cannot outlive it
+- `'static` means the reference is valid for the entire program (e.g., string literals)
+- Most lifetimes are inferred automatically (elision) -- only add them when the compiler asks
+
+## Common Compiler Errors
+
+**`error[E0106]: missing lifetime specifier`**
+A function returns a reference but the compiler cannot determine which input it borrows from.
+Fix: add lifetime annotations to link the return reference to an input parameter: `fn foo<'a>(x: &'a str) -> &'a str`.
+
+**`error[E0597]: 'x' does not live long enough`**
+A reference outlives the data it points to. The borrowed value is dropped while still referenced.
+Fix: either extend the scope of the owner, or return an owned value (`String` instead of `&str`).
+
+**`error[E0515]: cannot return reference to local variable`**
+You are trying to return a `&T` to data created inside the function.
+Fix: return an owned type instead (e.g., `String` instead of `&str`, `Vec<T>` instead of `&[T]`).
+
+## When You'll Use This
+- **Lesson 23 (Binder & Catalog):** `Binder<'a>` borrows `&'a Catalog`, ensuring the catalog outlives the binder
+- **Lesson 24 (Physical Plan):** `PhysicalPlanBuilder<'a>` borrows the catalog during scan construction
+- **Lesson 1 (Arena Allocator):** arena-allocated `&str` references must not outlive the arena
+
+Lifetimes appear implicitly in every lesson that uses references, which is nearly all of them.
+
 ## What This Is
 
 Lifetimes are Rust's way of tracking how long references remain valid. Every reference in Rust has a lifetime -- the region of code during which the reference is guaranteed to point to valid data. Most of the time, the compiler figures out lifetimes automatically (this is called "lifetime elision"). But in certain situations -- especially when a function returns a reference, or when a struct holds a reference -- you need to annotate lifetimes explicitly so the compiler can verify your code is safe.
@@ -158,6 +186,13 @@ fn main() {
    - If one of the inputs is `&self` or `&mut self`, its lifetime is assigned to all output references.
 
    When these rules are insufficient, the compiler asks you to add explicit annotations. Understanding elision helps you see why.
+
+## Related Concepts
+
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- lifetimes are an extension of the ownership model
+- [Structs and Impl](./structs_and_impl.md) -- structs with lifetime parameters hold borrowed data
+- [Generics](./generics.md) -- lifetimes are a form of generic parameter (`<'a>`)
+- [Trait Bounds](./trait_bounds.md) -- lifetime bounds like `T: 'a` constrain how long a type is valid
 
 ## Quick Reference
 

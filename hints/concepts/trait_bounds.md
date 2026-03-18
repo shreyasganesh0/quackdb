@@ -2,6 +2,33 @@
 
 > **Prerequisites:** [generics](./generics.md), [traits_and_derive](./traits_and_derive.md)
 
+## Quick Reference
+- `fn f<T: Clone>(x: T)` -- `T` must implement `Clone`
+- `fn f<T: Clone + Debug>(x: T)` -- `T` must implement both
+- `fn f<T>(x: T) where T: Clone + Debug` -- same as above, using `where` clause
+- Put bounds on `impl` blocks, not on the struct definition
+- Start with no bounds; add them as the compiler tells you what is needed
+
+## Common Compiler Errors
+
+**`error[E0369]: binary operation '==' cannot be applied to type 'T'`**
+You used `==` on a generic `T` without requiring `PartialEq`.
+Fix: add `T: PartialEq` to the function or impl bounds.
+
+**`error[E0277]: the trait bound 'T: Hash' is not satisfied`**
+You tried to use `T` as a `HashMap` key without the required traits.
+Fix: add `T: Eq + Hash` to the bounds. `HashMap` keys need both.
+
+**`error[E0277]: the trait bound 'T: Default' is not satisfied`**
+You called `T::default()` without requiring `Default`.
+Fix: add `T: Default` to the function or impl bounds.
+
+## When You'll Use This
+- **Lesson 5 (RLE):** trait bounds `Clone + PartialEq` on encode, `Clone` on decode
+- **Lesson 6 (Dictionary):** `Eq + Hash` bounds for HashMap keys
+- **Lesson 10 (Buffer Pool):** `D: DiskManager` bound lets the pool call trait methods
+- **Lesson 12 (Columnar Read):** `R: Read + Seek` for streaming and random-access I/O
+
 ## What This Is
 
 Trait bounds are how Rust constrains generic type parameters. When you write a generic function like `fn process<T>(item: T)`, the function knows nothing about `T` -- it cannot print it, clone it, compare it, or call any methods on it. Trait bounds tell the compiler "this type parameter `T` must implement these specific traits," which unlocks the corresponding methods inside the function body. If you come from TypeScript, think of `T extends Interface`. In Java, this is `<T extends Comparable<T>>`. In C++, this is loosely similar to concepts (C++20) or the informal constraints that templates relied on before concepts existed.
@@ -220,6 +247,13 @@ fn main() {
     ```
 
 3. **`Clone` vs `Copy` as bounds.** If you use `T: Copy`, you restrict your function to small, stack-only types (integers, booleans, references). If you use `T: Clone`, you support heap-owning types like `String` and `Vec<T>` too. Prefer `Clone` unless you specifically need the implicit-copy semantics of `Copy`.
+
+## Related Concepts
+
+- [Generics](./generics.md) -- trait bounds constrain generic type parameters
+- [Traits and Derive](./traits_and_derive.md) -- traits define the behaviors used as bounds
+- [Trait Objects](./trait_objects.md) -- `dyn Trait` is the dynamic-dispatch alternative to bounded generics
+- [Lifetimes](./lifetimes.md) -- lifetime bounds like `T: 'a` are a special form of trait bound
 
 ## Quick Reference
 

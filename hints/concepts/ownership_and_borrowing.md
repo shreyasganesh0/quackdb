@@ -2,6 +2,34 @@
 
 > **Prerequisites:** None - this is a starting concept
 
+## Quick Reference
+- `let b = a;` moves ownership (for non-Copy types like `String`, `Vec`) -- `a` is invalid after this
+- `let r = &a;` borrows immutably -- `a` is still valid, read-only access through `r`
+- `let m = &mut a;` borrows mutably -- `a` is locked until `m` is no longer used
+- `.clone()` creates a deep copy so both sides own independent data
+- Primitives (`i32`, `f64`, `bool`) implement `Copy` -- they are copied, not moved
+
+## Common Compiler Errors
+
+**`error[E0382]: borrow of moved value: 'x'`**
+You used a variable after its ownership was transferred to something else.
+Fix: either `.clone()` before the move, or borrow (`&x`) instead of moving.
+
+**`error[E0502]: cannot borrow 'x' as mutable because it is also borrowed as immutable`**
+You have a `&x` and `&mut x` alive at the same time.
+Fix: ensure the immutable reference's last use is before the mutable borrow begins.
+
+**`error[E0499]: cannot borrow 'x' as mutable more than once at a time`**
+Two `&mut x` references exist simultaneously.
+Fix: restructure so only one mutable reference is active at a time, or use the first one before creating the second.
+
+## When You'll Use This
+- **Lesson 1 (Arena Allocator):** returning `&mut [u8]` that borrows from the arena
+- **Lesson 4 (DataChunks):** DataChunk owns its `Vec<Vector>`; methods return references to columns
+- **Lesson 33 (Shuffle Exchange):** sending a DataChunk through a channel transfers ownership
+
+Ownership and borrowing is foundational to every lesson in the curriculum.
+
 ## What This Is
 
 Ownership is Rust's core memory management strategy. In Python, JavaScript, and Go, a garbage collector automatically frees memory when no references remain. In C and C++, you manually allocate and free memory (or use smart pointers). Rust takes a third path: every value has exactly one owner, and the value is dropped (freed) the moment that owner goes out of scope. There is no garbage collector, and there is no manual free.
@@ -125,6 +153,12 @@ Note: `clone()` performs a deep copy and can be expensive for large data. Use it
    ```
 
 3. **Mutable borrow "locks" the original variable.** A common surprise: while a `&mut` reference is active, you cannot use the original variable at all -- not even to read it. The lock ends at the last point where the mutable reference is used (this is called Non-Lexical Lifetimes, or NLL).
+
+## Related Concepts
+
+- [Lifetimes](./lifetimes.md) -- explicit annotations for how long references remain valid
+- [Slices and Bytes](./slices_and_bytes.md) -- borrowed views into contiguous data (`&[T]`)
+- [String Types](./string_types.md) -- `String` (owned) vs `&str` (borrowed) mirrors the ownership model
 
 ## Quick Reference
 

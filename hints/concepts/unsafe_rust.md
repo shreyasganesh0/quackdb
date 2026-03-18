@@ -2,6 +2,30 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md)
 
+## Quick Reference
+- `unsafe { ... }` unlocks 5 things: deref raw pointers, call unsafe fns, mutable statics, unsafe traits, union fields
+- The borrow checker, type system, and lifetimes still apply inside `unsafe`
+- `*const T` (immutable raw pointer) and `*mut T` (mutable raw pointer) -- like C pointers
+- Always document safety invariants with `// SAFETY:` comments
+- Keep `unsafe` blocks as small as possible; wrap them in safe public APIs
+
+## Common Compiler Errors
+
+**`error[E0133]: dereference of raw pointer is unsafe and requires unsafe function or block`**
+You dereferenced a raw pointer outside an `unsafe` block.
+Fix: wrap the dereference in `unsafe { *ptr }`.
+
+**`error[E0133]: call to unsafe function is unsafe and requires unsafe function or block`**
+You called an `unsafe fn` without wrapping the call.
+Fix: wrap the call in `unsafe { dangerous_function() }`.
+
+**Note:** Many unsafe bugs do NOT produce compiler errors -- they cause undefined behavior at runtime. Use `cargo +nightly miri test` to detect UB in tests.
+
+## When You'll Use This
+- **Lesson 1 (Arena Allocator):** converting raw `*const u8` back to `&str` in ArenaString
+- **Lesson 3 (Vectors):** `get_data_slice` reinterprets a byte buffer as a typed slice
+- **Lesson 35 (SIMD):** `aligned_alloc` requires unsafe for custom memory alignment
+
 ## What This Is
 
 Rust's safety guarantees come from strict compile-time checks: the borrow checker, type system, and lifetime analysis. But some operations are fundamentally impossible to verify at compile time -- interfacing with hardware, calling C libraries, or manipulating raw memory layouts for performance. For these cases, Rust provides `unsafe` blocks and `unsafe` functions.
@@ -145,6 +169,13 @@ fn main() {
 2. **The `// SAFETY:` comment is a social contract, not a compiler check.** When you write `unsafe { ... }`, you are making a promise that certain invariants hold. If those invariants are wrong, you get undefined behavior -- not a compiler error, not a runtime panic, but silent corruption, crashes, or worse. Always document your safety argument with a `// SAFETY:` comment. Reviewers (and your future self) depend on it.
 
 3. **Undefined behavior can "time travel."** Unlike a segfault in C that crashes at the bad line, UB in Rust (just like in C/C++) can cause the compiler to make optimizations that break code far away from the actual bug. For example, creating an invalid `bool` (a byte that is neither 0 nor 1) via unsafe can cause `match` statements elsewhere to take impossible branches. If you trigger UB, the entire program's behavior is unpredictable.
+
+## Related Concepts
+
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- unsafe lets you bypass borrow checker constraints with raw pointers
+- [Slices and Bytes](./slices_and_bytes.md) -- `std::slice::from_raw_parts` creates slices from raw pointers
+- [Concurrency](./concurrency.md) -- `unsafe impl Send` and `unsafe impl Sync` are used for custom thread-safe types
+- [Type Conversions](./type_conversions.md) -- `as` casts on raw pointers are common in unsafe code
 
 ## Quick Reference
 

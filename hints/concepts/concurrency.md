@@ -2,6 +2,32 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md), [trait_objects](./trait_objects.md)
 
+## Quick Reference
+- `thread::spawn(move || { ... })` spawns an OS thread; closure must be `'static + Send`
+- `Arc<T>` = thread-safe shared ownership (atomic reference counting)
+- `Mutex<T>` = mutual exclusion; wraps the data, not code sections
+- `Arc::clone(&x)` clones the pointer, not the data
+- `AtomicU64` / `AtomicBool` = lock-free atomic operations for counters and flags
+
+## Common Compiler Errors
+
+**`error[E0277]: 'Rc<T>' cannot be sent between threads safely`**
+You used `Rc` instead of `Arc` for cross-thread sharing.
+Fix: replace `Rc<T>` with `Arc<T>`. `Rc` uses non-atomic reference counts and is not `Send`.
+
+**`error[E0373]: closure may outlive the current function`**
+The closure borrows local variables but the thread may outlive the function.
+Fix: add `move` before the closure to take ownership of captured variables.
+
+**`error[E0277]: 'MutexGuard' cannot be sent between threads safely`**
+You tried to hold a `MutexGuard` across a `.await` or send it to another thread.
+Fix: drop the guard before the await point or thread boundary. Use a shorter critical section.
+
+## When You'll Use This
+- **Lesson 27 (MVCC):** `AtomicU64` with `Ordering::SeqCst` for thread-safe transaction ID generation
+- **Lesson 29 (Morsel-Parallel):** `Arc`, `Mutex`, `thread::spawn`, `Send`/`Sync` bounds for parallel execution
+- **Lesson 33 (Shuffle Exchange):** `mpsc::channel` for message passing between threads
+
 ## What This Is
 
 Concurrency in Rust is built on a simple but powerful idea: the ownership system that prevents
@@ -30,30 +56,32 @@ write-ahead log appenders.
 use std::thread;
 use std::sync::{Arc, Mutex};
 
-// Spawning a thread -- the closure must be 'static + Send
-let handle = thread::spawn(|| {
-    println!("Hello from a thread!");
-    42  // return value
-});
-let result = handle.join().unwrap();  // wait for thread, get return value
-assert_eq!(result, 42);
+fn main() {
+    // Spawning a thread -- the closure must be 'static + Send
+    let handle = thread::spawn(|| {
+        println!("Hello from a thread!");
+        42  // return value
+    });
+    let result = handle.join().unwrap();  // wait for thread, get return value
+    assert_eq!(result, 42);
 
-// Sharing data with Arc + Mutex
-let counter = Arc::new(Mutex::new(0));
+    // Sharing data with Arc + Mutex
+    let counter = Arc::new(Mutex::new(0));
 
-let mut handles = vec![];
-for _ in 0..4 {
-    let counter = Arc::clone(&counter);   // clone the Arc, not the data
-    handles.push(thread::spawn(move || {
-        let mut num = counter.lock().unwrap();  // lock returns MutexGuard
-        *num += 1;
-        // lock is automatically released when MutexGuard is dropped
-    }));
+    let mut handles = vec![];
+    for _ in 0..4 {
+        let counter = Arc::clone(&counter);   // clone the Arc, not the data
+        handles.push(thread::spawn(move || {
+            let mut num = counter.lock().unwrap();  // lock returns MutexGuard
+            *num += 1;
+            // lock is automatically released when MutexGuard is dropped
+        }));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+    assert_eq!(*counter.lock().unwrap(), 4);
 }
-for h in handles {
-    h.join().unwrap();
-}
-assert_eq!(*counter.lock().unwrap(), 4);
 ```
 
 ## Common Patterns
@@ -87,8 +115,10 @@ fn parallel_count(data: &[Vec<i32>], threshold: i32) -> u64 {
     count.load(Ordering::Relaxed)
 }
 
-let data = vec![vec![1, 5, 10], vec![3, 7, 12], vec![2, 8, 15]];
-assert_eq!(parallel_count(&data, 6), 5);  // 10, 7, 12, 8, 15
+fn main() {
+    let data = vec![vec![1, 5, 10], vec![3, 7, 12], vec![2, 8, 15]];
+    assert_eq!(parallel_count(&data, 6), 5);  // 10, 7, 12, 8, 15
+}
 ```
 
 ### Pattern 2: Message Passing with `mpsc` Channels
@@ -189,6 +219,13 @@ fn parallel_lookup() {
    If thread A locks mutex X then tries to lock mutex Y, while thread B locks Y then tries X,
    you have a classic deadlock. Rust will not catch this. Always acquire locks in a consistent
    order, and keep critical sections short.
+
+## Related Concepts
+
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- ownership rules prevent data races at compile time
+- [Closures](./closures.md) -- `move` closures transfer ownership into spawned threads
+- [Trait Objects](./trait_objects.md) -- `Box<dyn Trait + Send>` for thread-safe dynamic dispatch
+- [Unsafe Rust](./unsafe_rust.md) -- `unsafe impl Send/Sync` for custom thread-safe types
 
 ## Quick Reference
 

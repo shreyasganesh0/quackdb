@@ -2,6 +2,36 @@
 
 > **Prerequisites:** [traits_and_derive](./traits_and_derive.md)
 
+## Quick Reference
+- `|x| x + 1` -- closure taking one argument (types usually inferred)
+- `|x, y| x + y` -- closure taking two arguments
+- `move || { ... }` -- force the closure to take ownership of captured variables
+- `Fn` = immutable borrow, `FnMut` = mutable borrow, `FnOnce` = takes ownership
+- `Box<dyn Fn(i32) -> i32>` -- heap-allocated closure for storage in structs/collections
+
+## Common Compiler Errors
+
+**`error[E0525]: expected a closure that implements the 'Fn' trait, but this closure only implements 'FnMut'`**
+Your closure mutates a captured variable, so it is `FnMut`, not `Fn`.
+Fix: change the function parameter from `impl Fn()` to `impl FnMut()`, and mark the parameter `mut`.
+
+**`error[E0373]: closure may outlive the current function, but it borrows 'x'`**
+The closure captures a reference to a local variable, but needs to live longer (e.g., sent to a thread).
+Fix: add `move` before the closure: `move || { ... }` to take ownership instead of borrowing.
+
+**`error[E0308]: expected closure, found a different closure`**
+Each closure has a unique anonymous type; you cannot store two different closures in the same variable without boxing.
+Fix: use `Box<dyn Fn(...)>` or `impl Fn(...)` as the type.
+
+## When You'll Use This
+- **Lesson 18 (Sort-Merge Join):** comparison logic in closures passed to sort routines
+- **Lesson 19 (External Sort):** `Box<dyn Fn(&T, &T) -> Ordering>` for runtime-polymorphic comparison
+- **Lesson 29 (Morsel-Parallel):** `impl Fn() -> Box<dyn Trait + Send>` operator factory pattern
+- **Lesson 30 (Window Functions):** frame-bound calculations and partition grouping logic
+- **Lesson 34 (Adaptive Execution):** hashing with multiple seeds, adaptive threshold functions
+
+Closures appear in every lesson that uses iterators (`.map()`, `.filter()`, `.fold()`).
+
 ## What This Is
 
 A closure is an anonymous function that can capture variables from its surrounding scope. If you
@@ -25,41 +55,43 @@ visitor patterns over query plans.
 ## Syntax
 
 ```rust
-// Basic closure
-let add_one = |x: i32| x + 1;
-assert_eq!(add_one(5), 6);
+fn main() {
+    // Basic closure
+    let add_one = |x: i32| x + 1;
+    assert_eq!(add_one(5), 6);
 
-// Type annotations are optional when the compiler can infer types
-let multiply = |a, b| a * b;
-assert_eq!(multiply(3, 4), 12);
+    // Type annotations are optional when the compiler can infer types
+    let multiply = |a, b| a * b;
+    assert_eq!(multiply(3, 4), 12);
 
-// Multi-line closure with a block body
-let classify = |score: f64| {
-    if score >= 90.0 { "A" }
-    else if score >= 80.0 { "B" }
-    else { "C" }
-};
+    // Multi-line closure with a block body
+    let classify = |score: f64| {
+        if score >= 90.0 { "A" }
+        else if score >= 80.0 { "B" }
+        else { "C" }
+    };
 
-// Capturing from the environment
-let threshold = 50;
-let is_passing = |score: i32| score >= threshold;  // borrows `threshold`
+    // Capturing from the environment
+    let threshold = 50;
+    let is_passing = |score: i32| score >= threshold;  // borrows `threshold`
 
-// Mutable capture
-let mut count = 0;
-let mut increment = || {
-    count += 1;    // mutably borrows `count`
-    count
-};
-assert_eq!(increment(), 1);
-assert_eq!(increment(), 2);
+    // Mutable capture
+    let mut count = 0;
+    let mut increment = || {
+        count += 1;    // mutably borrows `count`
+        count
+    };
+    assert_eq!(increment(), 1);
+    assert_eq!(increment(), 2);
 
-// Move capture: closure takes ownership
-let name = String::from("Alice");
-let greet = move || {
-    println!("Hello, {}!", name);  // `name` is moved into the closure
-};
-greet();
-// println!("{}", name);  // compile error: `name` was moved
+    // Move capture: closure takes ownership
+    let name = String::from("Alice");
+    let greet = move || {
+        println!("Hello, {}!", name);  // `name` is moved into the closure
+    };
+    greet();
+    // println!("{}", name);  // compile error: `name` was moved
+}
 ```
 
 ## Common Patterns
@@ -70,21 +102,23 @@ Closures are the backbone of Rust's iterator combinators. This is the most commo
 you will write closures.
 
 ```rust
-let scores = vec![85, 92, 41, 73, 98, 55];
+fn main() {
+    let scores = vec![85, 92, 41, 73, 98, 55];
 
-// Filter, transform, collect
-let passing_grades: Vec<String> = scores
-    .iter()
-    .filter(|&&s| s >= 60)                    // Fn: immutable borrow
-    .map(|&s| format!("Score: {}", s))        // Fn: immutable borrow
-    .collect();
+    // Filter, transform, collect
+    let passing_grades: Vec<String> = scores
+        .iter()
+        .filter(|&&s| s >= 60)                    // Fn: immutable borrow
+        .map(|&s| format!("Score: {}", s))        // Fn: immutable borrow
+        .collect();
 
-// fold (like Python's reduce)
-let total: i32 = scores.iter().sum();
+    // fold (like Python's reduce)
+    let total: i32 = scores.iter().sum();
 
-// sort_by with a closure
-let mut items = vec![(1, "banana"), (3, "apple"), (2, "cherry")];
-items.sort_by(|a, b| a.0.cmp(&b.0));   // sort by the numeric field
+    // sort_by with a closure
+    let mut items = vec![(1, "banana"), (3, "apple"), (2, "cherry")];
+    items.sort_by(|a, b| a.0.cmp(&b.0));   // sort by the numeric field
+}
 ```
 
 ### Pattern 2: Closures as Function Parameters
@@ -105,26 +139,28 @@ where
     None
 }
 
-let numbers = vec![10, 25, 30, 45, 50];
-let threshold = 28;
+fn main() {
+    let numbers = vec![10, 25, 30, 45, 50];
+    let threshold = 28;
 
-// Pass a closure that captures `threshold`
-let result = find_first(&numbers, |n| n > threshold);
-assert_eq!(result, Some(30));
+    // Pass a closure that captures `threshold`
+    let result = find_first(&numbers, |n| n > threshold);
+    assert_eq!(result, Some(30));
 
-// FnMut example: closure that accumulates state
-fn apply_to_each<F>(data: &[i32], mut action: F)
-where
-    F: FnMut(i32),             // FnMut: closure may mutate its captures
-{
-    for &item in data {
-        action(item);
+    // FnMut example: closure that accumulates state
+    fn apply_to_each<F>(data: &[i32], mut action: F)
+    where
+        F: FnMut(i32),             // FnMut: closure may mutate its captures
+    {
+        for &item in data {
+            action(item);
+        }
     }
-}
 
-let mut sum = 0;
-apply_to_each(&[1, 2, 3], |x| sum += x);
-assert_eq!(sum, 6);
+    let mut sum = 0;
+    apply_to_each(&[1, 2, 3], |x| sum += x);
+    assert_eq!(sum, 6);
+}
 ```
 
 ### Pattern 3: Storing Closures with `Box<dyn Fn()>`
@@ -140,28 +176,30 @@ struct Transform {
     func: Callback,
 }
 
-let transforms: Vec<Transform> = vec![
-    Transform {
-        name: "double".into(),
-        func: Box::new(|x| x * 2.0),
-    },
-    Transform {
-        name: "square".into(),
-        func: Box::new(|x| x * x),
-    },
-    Transform {
-        name: "negate".into(),
-        func: Box::new(|x| -x),
-    },
-];
+fn main() {
+    let transforms: Vec<Transform> = vec![
+        Transform {
+            name: "double".into(),
+            func: Box::new(|x| x * 2.0),
+        },
+        Transform {
+            name: "square".into(),
+            func: Box::new(|x| x * x),
+        },
+        Transform {
+            name: "negate".into(),
+            func: Box::new(|x| -x),
+        },
+    ];
 
-let input = 3.0;
-for t in &transforms {
-    println!("{}: {} -> {}", t.name, input, (t.func)(input));
+    let input = 3.0;
+    for t in &transforms {
+        println!("{}: {} -> {}", t.name, input, (t.func)(input));
+    }
+    // double: 3 -> 6
+    // square: 3 -> 9
+    // negate: 3 -> -3
 }
-// double: 3 -> 6
-// square: 3 -> 9
-// negate: 3 -> -3
 ```
 
 ## Gotchas
@@ -198,6 +236,13 @@ for t in &transforms {
    let add5 = make_adder(5);
    assert_eq!(add5(10), 15);
    ```
+
+## Related Concepts
+
+- [Iterators](./iterators.md) -- `.map()`, `.filter()`, `.fold()` all accept closures
+- [Trait Objects](./trait_objects.md) -- `Box<dyn Fn(...)>` stores closures as trait objects
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- closures capture variables by borrowing or moving
+- [Concurrency](./concurrency.md) -- `move` closures are essential for `thread::spawn`
 
 ## Quick Reference
 

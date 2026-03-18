@@ -2,6 +2,34 @@
 
 > **Prerequisites:** [traits_and_derive](./traits_and_derive.md)
 
+## Quick Reference
+- `x as u32` -- primitive cast (fast but silently truncates -- dangerous for narrowing)
+- `i64::from(42i32)` / `42i32.into()` -- infallible conversion via `From`/`Into` traits
+- `u8::try_from(300u32)` -- fallible conversion, returns `Result` (safe for narrowing)
+- `.checked_add()`, `.saturating_add()`, `.wrapping_add()` -- explicit overflow strategies
+- Always implement `From`, not `Into` -- you get `Into` for free
+
+## Common Compiler Errors
+
+**`error[E0308]: mismatched types -- expected 'u32', found 'usize'`**
+You passed one integer type where another was expected.
+Fix: use `as` for primitive casts (`x as u32`) or `.try_into()` for checked conversion.
+
+**`error[E0277]: the trait bound 'u8: From<u32>' is not satisfied`**
+`u8::from(x)` only works for widening conversions. Narrowing from `u32` to `u8` can lose data.
+Fix: use `u8::try_from(x)` which returns `Result`, or `x as u8` if you accept truncation.
+
+**`error[E0604]: only primitives can be cast with 'as'`**
+You used `as` on a non-primitive type (struct, enum, etc.).
+Fix: implement `From`/`Into` for your custom types instead.
+
+## When You'll Use This
+- **Lesson 26 (Cost Optimizer):** converting between row counts (`u64`), selectivity (`f64`), and cost components
+- **Lesson 2 (Types):** `cast_to` converting between ScalarValue types
+- **Lesson 9 (Pages):** converting `PageType` enum to/from `u8` discriminant
+
+Type conversions appear frequently when working with mixed numeric types in computations.
+
 ## What This Is
 
 Rust is a strongly typed language with no implicit type coercion. Unlike JavaScript where `"5" + 3` silently produces `"53"`, or C where an `int` quietly widens to a `long`, Rust requires every type conversion to be explicit. This eliminates an entire category of subtle bugs -- but it means you need to understand the different conversion mechanisms and when to use each one.
@@ -219,18 +247,19 @@ blanket implementation: if `T: From<U>`, then `U: Into<T>` automatically.
 Implementing `Into` directly does not give you `From`:
 ```rust
 // GOOD: implement From
-impl From<Celsius> for Fahrenheit {
-    fn from(c: Celsius) -> Self {
-        Fahrenheit(c.0 * 9.0 / 5.0 + 32.0)
-    }
-}
-// Now both work:
-// Fahrenheit::from(c)
-// c.into()
+// impl From<Celsius> for Fahrenheit { ... }
+// Now both work: Fahrenheit::from(c) and c.into()
 
 // BAD: don't implement Into directly
 // impl Into<Fahrenheit> for Celsius { ... }  // doesn't give you From
 ```
+
+## Related Concepts
+
+- [Error Handling](./error_handling.md) -- `TryFrom`/`TryInto` return `Result`, integrating with `?` for error propagation
+- [Traits and Derive](./traits_and_derive.md) -- `From`, `Into`, `TryFrom` are all traits you implement
+- [Bitwise Ops](./bitwise_ops.md) -- `as` casts are needed when mixing integer types in bit operations
+- [Generics](./generics.md) -- `fn f<T: Into<String>>(s: T)` accepts anything convertible
 
 ## Quick Reference
 

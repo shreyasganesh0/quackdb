@@ -2,6 +2,38 @@
 
 > **Prerequisites:** [enums_and_matching](./enums_and_matching.md)
 
+## Quick Reference
+- `Result<T, E>` has `Ok(T)` for success and `Err(E)` for failure
+- `Option<T>` has `Some(T)` for present and `None` for absent
+- `?` operator: returns early on `Err`/`None`, extracts `Ok`/`Some` value
+- `.unwrap()` panics on error -- use only in tests or when failure is impossible
+- `.map()`, `.and_then()`, `.ok_or()` for functional-style chaining
+
+## Common Compiler Errors
+
+**`error[E0277]: the '?' operator can only be used in a function that returns 'Result' or 'Option'`**
+You used `?` inside `main()` or a function returning `()`.
+Fix: change the return type to `Result<(), Box<dyn std::error::Error>>` or `Result<(), String>`.
+
+**`error[E0308]: mismatched types -- expected 'Result<_, String>', found 'Result<_, io::Error>'`**
+Your function returns `Result<_, String>` but a called function returns a different error type.
+Fix: use `.map_err(|e| e.to_string())?` or `.map_err(|e| format!("{}", e))?` to convert.
+
+**`error[E0599]: no method named 'map_err' found for enum 'Option'`**
+You called a `Result`-only method on an `Option`.
+Fix: `Option` does not have `.map_err()`. Use `.ok_or("error msg")?` to convert to `Result` first.
+
+## When You'll Use This
+- **Lesson 2 (Types):** `cast_to` and `from_bytes` return `Result<_, String>`
+- **Lesson 8 (Compression Frame):** `Result<Self, String>` when deserialization encounters invalid bytes
+- **Lesson 11 (Columnar Write):** propagating `io::Error` from write calls as `String`
+- **Lesson 12 (Columnar Read):** error propagation through the read pipeline
+- **Lesson 13 (Expressions):** type mismatches and invalid operations return descriptive errors
+- **Lesson 17 (Hash Join):** probe returns `Result<DataChunk, String>`
+- **Lesson 20 (SQL Lexer):** `Result<Vec<PositionedToken>, LexerError>` with position info
+- **Lesson 21 (SQL Parser):** `Result<T, ParseError>` with line/column info
+- **Lesson 23 (Binder & Catalog):** `Result<_, BindError>` for missing tables, ambiguous columns
+
 ## What This Is
 
 Rust does not have exceptions. There is no `try/catch`, no `throw`, no unwinding stack traces that silently propagate errors upward. Instead, Rust uses two enum types from the standard library to represent the possibility of failure or absence: `Result<T, E>` and `Option<T>`. If you come from Python, JavaScript, or Java, this is a fundamental shift -- errors are **values** that you must explicitly handle, not invisible control flow that jumps across stack frames.
@@ -147,6 +179,13 @@ fn read_record(path: &str) -> Result<Vec<u8>, StorageError> {
     ```
 
 3. **Confusing `Option` methods with `Result` methods.** Both types share many method names (`.map()`, `.and_then()`, `.unwrap()`), but some are unique. For example, `Result` has `.map_err()` (transform the error), while `Option` has `.unwrap_or()` and `.unwrap_or_else()` (provide a default). Using the wrong one produces confusing type errors. Check which type you are working with.
+
+## Related Concepts
+
+- [Enums and Matching](./enums_and_matching.md) -- `Result` and `Option` are enums, and you handle them with `match`
+- [Type Conversions](./type_conversions.md) -- `From` impls enable automatic error conversion with `?`
+- [Traits and Derive](./traits_and_derive.md) -- custom error types implement `Display` and often `From`
+- [Closures](./closures.md) -- `.map()`, `.and_then()`, `.map_err()` all take closures
 
 ## Quick Reference
 

@@ -2,6 +2,35 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md), [enums_and_matching](./enums_and_matching.md)
 
+## Quick Reference
+- `Box::new(value)` allocates `value` on the heap, returns a fixed-size pointer
+- `*my_box` dereferences to access the inner value
+- Recursive types need `Box` to break infinite size: `enum List { Cons(i32, Box<List>), Nil }`
+- `Box<dyn Trait>` = heap-allocated trait object for dynamic dispatch
+- `Box<T>` acts like `std::unique_ptr<T>` in C++ -- single owner, freed on drop
+
+## Common Compiler Errors
+
+**`error[E0072]: recursive type 'Node' has infinite size`**
+Your struct or enum contains itself directly without indirection.
+Fix: wrap the recursive field in `Box<>`: `children: Vec<Box<Node>>` or `next: Option<Box<Node>>`.
+
+**`error[E0308]: mismatched types -- expected 'Box<T>', found 'T'`**
+You forgot to wrap a value in `Box::new()`.
+Fix: `let b: Box<i32> = Box::new(42);` -- Rust does not implicitly heap-allocate.
+
+**`error[E0507]: cannot move out of 'Box<T>' which is behind a shared reference`**
+You tried to move data out of a borrowed Box.
+Fix: use `*my_box` only on an owned Box, or clone the inner value.
+
+## When You'll Use This
+- **Lesson 13 (Expressions):** `BinaryOp` contains `Box<Expression>` children
+- **Lesson 19 (External Sort):** `Box<dyn Fn>` for runtime-polymorphic comparison closures
+- **Lesson 21 (SQL Parser):** `Expr` contains `Box<Expr>` for binary ops; `TableRef::Join` has `Box<TableRef>`
+- **Lesson 22 (Logical Plan):** plan nodes reference children via `Box<LogicalPlan>`
+- **Lesson 27 (MVCC):** `prev_version: Option<Box<VersionedRow>>` forms a version chain
+- **Lesson 32 (Distributed Plan):** recursive plan tree with `Box<LogicalPlan>` children
+
 ## What This Is
 
 In Python and JavaScript, every object lives on the heap. You never think about it. In C++, you
@@ -23,24 +52,26 @@ trees, B-trees, query plan nodes, and any hierarchical data structure.
 ## Syntax
 
 ```rust
-// Basic Box usage
-let x: Box<i32> = Box::new(42);      // allocate 42 on the heap
-println!("{}", *x);                    // dereference to get the value: 42
+fn main() {
+    // Basic Box usage
+    let x: Box<i32> = Box::new(42);      // allocate 42 on the heap
+    println!("{}", *x);                    // dereference to get the value: 42
 
-// Box owns the value; moving the Box moves ownership
-let y = x;                            // x is now invalid
-// println!("{}", *x);                // compile error: use of moved value
+    // Box owns the value; moving the Box moves ownership
+    let y = x;                            // x is now invalid
+    // println!("{}", *x);                // compile error: use of moved value
 
-// A recursive enum WITHOUT Box would not compile:
-// enum BadList { Cons(i32, BadList), Nil }  // ERROR: infinite size
+    // A recursive enum WITHOUT Box would not compile:
+    // enum BadList { Cons(i32, BadList), Nil }  // ERROR: infinite size
 
-// Fixed with Box:
-enum List {
-    Cons(i32, Box<List>),              // Box<List> is pointer-sized
-    Nil,
+    // Fixed with Box:
+    enum List {
+        Cons(i32, Box<List>),              // Box<List> is pointer-sized
+        Nil,
+    }
+
+    let list = List::Cons(1, Box::new(List::Cons(2, Box::new(List::Nil))));
 }
-
-let list = List::Cons(1, Box::new(List::Cons(2, Box::new(List::Nil))));
 ```
 
 ## Common Patterns
@@ -67,15 +98,17 @@ fn eval(expr: &Expr) -> f64 {
     }
 }
 
-// Build: (3 + 4) * -2
-let tree = Expr::Mul(
-    Box::new(Expr::Add(
-        Box::new(Expr::Literal(3.0)),
-        Box::new(Expr::Literal(4.0)),
-    )),
-    Box::new(Expr::Neg(Box::new(Expr::Literal(2.0)))),
-);
-assert_eq!(eval(&tree), -14.0);
+fn main() {
+    // Build: (3 + 4) * -2
+    let tree = Expr::Mul(
+        Box::new(Expr::Add(
+            Box::new(Expr::Literal(3.0)),
+            Box::new(Expr::Literal(4.0)),
+        )),
+        Box::new(Expr::Neg(Box::new(Expr::Literal(2.0)))),
+    );
+    assert_eq!(eval(&tree), -14.0);
+}
 ```
 
 ### Pattern 2: Recursive Structs for Tree Structures
@@ -135,6 +168,13 @@ fn open_input(path: &str) -> Box<dyn Read> {
    call methods on the inner value directly: `my_box.some_method()`. This is convenient but can
    obscure what is happening. If you see method calls on a `Box` and wonder where the method
    is defined, check the inner type `T`.
+
+## Related Concepts
+
+- [Trait Objects](./trait_objects.md) -- `Box<dyn Trait>` combines boxing with dynamic dispatch
+- [Enums and Matching](./enums_and_matching.md) -- recursive enums are the primary use case for Box
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- Box provides single-owner heap allocation
+- [Closures](./closures.md) -- `Box<dyn Fn(...)>` is used to store closures in structs
 
 ## Quick Reference
 

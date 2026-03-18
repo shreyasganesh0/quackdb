@@ -2,6 +2,34 @@
 
 > **Prerequisites:** [structs_and_impl](./structs_and_impl.md)
 
+## Quick Reference
+- `fn foo<T>(x: T)` -- generic function; `T` is inferred at each call site
+- `fn foo<T: Clone + Debug>(x: T)` -- `T` must implement both traits
+- `struct Pair<A, B> { left: A, right: B }` -- generic struct
+- `::<Type>` (turbofish) explicitly specifies the type: `"42".parse::<i32>()`
+- `impl<T> Foo<T> { ... }` -- methods for all `T`; `impl Foo<String> { ... }` -- methods only for `String`
+
+## Common Compiler Errors
+
+**`error[E0282]: type annotations needed`**
+The compiler cannot infer the generic type, most often with `.collect()`.
+Fix: add a type annotation: `let v: Vec<i32> = iter.collect();` or use turbofish: `iter.collect::<Vec<i32>>()`.
+
+**`error[E0599]: no method named 'clone' found for type parameter 'T'`**
+You called a method on a generic `T` without adding the required trait bound.
+Fix: add the bound: `fn foo<T: Clone>(x: T)` or `where T: Clone`.
+
+**`error[E0369]: binary operation '==' cannot be applied to type 'T'`**
+You used `==` on a generic type without requiring `PartialEq`.
+Fix: add `T: PartialEq` to the function's trait bounds.
+
+## When You'll Use This
+- **Lesson 5 (RLE):** `Run<T>` and `RleEncoded<T>` are generic structs
+- **Lesson 10 (Buffer Pool):** `BufferPool<D: DiskManager>` is parameterized over any disk backend
+- **Lesson 11 (Columnar Write):** `ColumnarFileWriter<W: Write>` works with any writable destination
+- **Lesson 19 (External Sort):** `MinHeap<T>` works with any element type
+- **Lesson 28 (WAL):** `WalWriter<W: Write>` and `WalReader<R: Read>` are parameterized over I/O traits
+
 ## What This Is
 
 Generics allow you to write code that works with many different types without duplicating logic. If you come from Python, generics are similar to the type parameters you see in `list[int]` or `dict[str, Any]` -- but in Rust they are enforced at compile time and have zero runtime cost. If you come from C++, Rust generics are conceptually similar to templates but with an important difference: Rust generics are type-checked at the point of definition, not at each instantiation site. If you come from JavaScript or other dynamically typed languages, generics replace the pattern of writing a function that "just works" on any input -- but with full type safety.
@@ -223,6 +251,13 @@ fn main() {
 2. **Turbofish is needed more often than you expect.** Calling `.collect()` on an iterator almost always needs a type annotation, because the compiler does not know which collection type you want. Common fix: `let v: Vec<_> = iter.collect();` or `iter.collect::<Vec<_>>()`.
 
 3. **Monomorphization means each concrete type generates its own machine code.** If you use `HashMap<String, Vec<i32>>` and `HashMap<String, Vec<f64>>`, the compiler generates two complete copies of `HashMap`'s code. This is rarely a problem, but in very generic codebases with many type combinations, it can noticeably increase compile times and binary size. If that becomes an issue, consider using trait objects (`dyn Trait`) for dynamic dispatch instead.
+
+## Related Concepts
+
+- [Trait Bounds](./trait_bounds.md) -- constraining what generic types can do
+- [Traits and Derive](./traits_and_derive.md) -- traits define the behaviors used in bounds
+- [Trait Objects](./trait_objects.md) -- `dyn Trait` is the alternative to generics for runtime polymorphism
+- [Lifetimes](./lifetimes.md) -- lifetime parameters (`<'a>`) are a form of generic parameter
 
 ## Quick Reference
 

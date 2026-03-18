@@ -2,6 +2,33 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md)
 
+## Quick Reference
+- `&[T]` = shared (immutable) slice, `&mut [T]` = mutable slice
+- `&arr[1..4]` borrows elements at indices 1, 2, 3 (exclusive end)
+- `b"hello"` = byte string literal of type `&[u8; 5]` (coerces to `&[u8]`)
+- `.get(i)` returns `Option<&T>` (safe), `[i]` panics on out-of-bounds
+- `.chunks(n)` and `.chunks_exact(n)` split into fixed-size sub-slices
+
+## Common Compiler Errors
+
+**`error[E0277]: the size for values of type '[T]' cannot be known at compilation time`**
+You used `[T]` (unsized) instead of `&[T]` (a reference to a slice).
+Fix: slices are always behind a reference: use `&[T]` or `&mut [T]`.
+
+**`error[E0502]: cannot borrow 'v' as mutable because it is also borrowed as immutable`**
+You held a slice reference to a Vec and then tried to mutate the Vec.
+Fix: ensure the slice reference is no longer in use before mutating, or use `.split_at_mut()`.
+
+**`error[E0507]: cannot move out of index of 'Vec<String>'`**
+You tried `let s = vec[0];` on a non-Copy type.
+Fix: use `&vec[0]` to borrow, `.clone()` to copy, or `.remove(0)` to take it out.
+
+## When You'll Use This
+- **Lesson 3 (Vectors):** `Vector` stores data as `Vec<u8>` but exposes typed slices
+- **Lesson 7 (Bitpack/Delta):** working with `Vec<u8>` as a bitstream
+- **Lesson 9 (Pages):** working with `&[u8]` slices and `Vec<u8>` buffers
+- **Lesson 35 (SIMD):** all functions operate on `&[T]` and `&mut [T]` slices
+
 ## What This Is
 
 A **slice** in Rust is a dynamically-sized view into a contiguous sequence of elements. Written as `&[T]` (shared slice) or `&mut [T]` (mutable slice), a slice is essentially a fat pointer: it stores both a pointer to the data and a length. Slices do not own the data they reference; they borrow it from some owning collection like a `Vec<T>` or an array `[T; N]`.
@@ -13,27 +40,29 @@ Byte slices (`&[u8]`) are particularly important in systems programming. They re
 ## Syntax
 
 ```rust
-// Creating slices from arrays and vectors
-let arr: [i32; 5] = [10, 20, 30, 40, 50];
-let full_slice: &[i32] = &arr;          // slice of the whole array
-let partial: &[i32] = &arr[1..4];       // elements at index 1, 2, 3 => [20, 30, 40]
+fn main() {
+    // Creating slices from arrays and vectors
+    let arr: [i32; 5] = [10, 20, 30, 40, 50];
+    let full_slice: &[i32] = &arr;          // slice of the whole array
+    let partial: &[i32] = &arr[1..4];       // elements at index 1, 2, 3 => [20, 30, 40]
 
-let mut vec = vec![1, 2, 3, 4];
-let slice: &[i32] = &vec;               // immutable slice of the vector
-let mut_slice: &mut [i32] = &mut vec;   // mutable slice -- can modify elements in place
-mut_slice[0] = 99;
+    let mut vec = vec![1, 2, 3, 4];
+    let slice: &[i32] = &vec;               // immutable slice of the vector
+    let mut_slice: &mut [i32] = &mut vec;   // mutable slice -- can modify elements in place
+    mut_slice[0] = 99;
 
-// Byte slices
-let bytes: &[u8] = b"hello";            // byte string literal => &[u8; 5], coerces to &[u8]
-let raw: &[u8] = &[0xFF, 0x00, 0xAB];  // explicit byte array
+    // Byte slices
+    let bytes: &[u8] = b"hello";            // byte string literal => &[u8; 5], coerces to &[u8]
+    let raw: &[u8] = &[0xFF, 0x00, 0xAB];  // explicit byte array
 
-// Slice length and emptiness
-assert_eq!(partial.len(), 3);
-assert!(!partial.is_empty());
+    // Slice length and emptiness
+    assert_eq!(partial.len(), 3);
+    assert!(!partial.is_empty());
 
-// Subslicing with ranges
-let first_two: &[i32] = &arr[..2];      // [10, 20]
-let last_two: &[i32] = &arr[3..];       // [40, 50]
+    // Subslicing with ranges
+    let first_two: &[i32] = &arr[..2];      // [10, 20]
+    let last_two: &[i32] = &arr[3..];       // [40, 50]
+}
 ```
 
 ## Common Patterns
@@ -151,6 +180,13 @@ let (left, right) = data.split_at_mut(3);
 left[0] = 100;   // OK -- left and right don't overlap
 right[1] = 200;  // OK
 ```
+
+## Related Concepts
+
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- slices are borrowed views; the owner controls the data's lifetime
+- [String Types](./string_types.md) -- `&str` is a specialized UTF-8 slice; `&[u8]` is a raw byte slice
+- [Unsafe Rust](./unsafe_rust.md) -- reinterpreting byte buffers as typed slices often requires unsafe
+- [Collections](./collections.md) -- `Vec<T>` owns the data that `&[T]` borrows from
 
 ## Quick Reference
 

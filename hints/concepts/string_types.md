@@ -2,6 +2,34 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md)
 
+## Quick Reference
+- `String` = owned, heap-allocated, growable (like Python's `str` but mutable)
+- `&str` = borrowed reference to string data (a read-only view)
+- Function parameters: prefer `&str` (accepts both `&String` and `"literals"`)
+- Struct fields: use `String` (owns the data, lives as long as the struct)
+- `format!("{} {}", a, b)` is the safest way to concatenate strings
+
+## Common Compiler Errors
+
+**`error[E0308]: mismatched types -- expected 'String', found '&str'`**
+You passed a `&str` where a `String` was expected.
+Fix: use `.to_string()` or `String::from("...")` to create an owned `String`.
+
+**`error[E0277]: the type 'str' doesn't have a size known at compile-time`**
+You tried to use `str` without a reference. Bare `str` is unsized.
+Fix: always use `&str` (borrowed) or `String` (owned), never bare `str`.
+
+**`error[E0277]: cannot index into a value of type 'String'`**
+You tried to use `s[0]` to get a character.
+Fix: use `s.chars().nth(0)` for the first character, or `s.as_bytes()[0]` for the first byte.
+
+## When You'll Use This
+- **Lesson 20 (SQL Lexer):** input stored as `Vec<char>` for indexed access; identifiers produced as `String`
+- **Lesson 2 (Types):** `ScalarValue::Text(String)` holds owned string data
+- **Lesson 6 (Dictionary):** dictionary entries are `String` values
+
+String types appear in virtually every lesson for names, error messages, and text processing.
+
 ## What This Is
 
 Rust has two main string types, and this is one of the first things that confuses newcomers from Python, JavaScript, or even C++. In those languages, there is essentially one string type (`str` in Python, `string` in JS, `std::string` in C++). Rust has `String` (an owned, heap-allocated, growable buffer) and `&str` (a borrowed reference to a slice of UTF-8 bytes). Understanding the difference is essential because the compiler will refuse to compile code that mixes them incorrectly.
@@ -174,6 +202,13 @@ fn main() {
     assert_eq!(kanji.len(), 9);           // 9 bytes (3 chars * 3 bytes each)
     assert_eq!(kanji.chars().count(), 3); // 3 characters
     ```
+
+## Related Concepts
+
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- `String` (owned) vs `&str` (borrowed) is the ownership model applied to text
+- [Slices and Bytes](./slices_and_bytes.md) -- `&str` is a specialized slice of UTF-8 bytes; `&[u8]` is a raw byte slice
+- [Lifetimes](./lifetimes.md) -- functions returning `&str` may need lifetime annotations
+- [Collections](./collections.md) -- `String` internally uses `Vec<u8>`
 
 ## Quick Reference
 

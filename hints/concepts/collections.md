@@ -2,6 +2,39 @@
 
 > **Prerequisites:** [ownership_and_borrowing](./ownership_and_borrowing.md), [generics](./generics.md)
 
+## Quick Reference
+- `Vec::new()` or `vec![1, 2, 3]` -- growable array, like Python's `list`
+- `HashMap::new()` + `.insert(k, v)` -- hash table, like Python's `dict`
+- `.get(&key)` returns `Option<&V>` -- safe lookup, no panic
+- `.entry(key).or_insert(default)` -- insert-or-update pattern (great for aggregations)
+- `Vec::with_capacity(n)` -- pre-allocate to avoid repeated reallocations
+
+## Common Compiler Errors
+
+**`error[E0502]: cannot borrow 'v' as mutable because it is also borrowed as immutable`**
+You took a reference to a Vec element and then tried to push/modify the Vec.
+Fix: clone the value (for Copy types this is automatic), or restructure so the borrow ends before mutation.
+
+**`error[E0277]: the trait bound 'K: Eq' is not satisfied`** (or `Hash`)
+You tried to use a type as a HashMap key without the required traits.
+Fix: add `#[derive(Eq, Hash, PartialEq)]` to the key type, or use a type that already implements them.
+
+**`error[E0599]: no method named 'entry' found for struct 'Vec'`**
+You called a HashMap method on a Vec.
+Fix: `entry()` is a `HashMap` method. For Vec, use indexing or `.push()`.
+
+## When You'll Use This
+- **Lesson 10 (Buffer Pool):** `HashMap` for the page table mapping page IDs to frame indices
+- **Lesson 16 (Hash Aggregate):** `HashMap<Vec<u8>, Vec<AggregateState>>` maps group keys to state
+- **Lesson 17 (Hash Join):** `HashMap<Vec<u8>, Vec<usize>>` maps key bytes to row indices
+- **Lesson 19 (External Sort):** `Vec` backs both the heap and sorted runs
+- **Lesson 23 (Binder & Catalog):** `HashMap<String, TableInfo>` for the catalog
+- **Lesson 26 (Cost Optimizer):** `HashMap<RelationSet, (LogicalPlan, Cost)>` for the DP table
+- **Lesson 27 (MVCC):** `HashMap<TxnId, Transaction>` for tracking transactions
+- **Lesson 30 (Window Functions):** heavy use of Vec for buffering and computing results
+- **Lesson 31 (Partitioning):** `Vec<Vec<DataChunk>>` for partition storage
+- **Lesson 34 (Adaptive Execution):** `Vec<u64>` as the Bloom filter bit array
+
 ## What This Is
 
 Rust's standard library provides growable, heap-allocated collection types that serve the same roles as collections in other languages. The two most commonly used are `Vec<T>` (a growable array) and `HashMap<K, V>` (a hash table). If you know Python, `Vec` is like `list` and `HashMap` is like `dict`. In JavaScript terms, `Vec` is similar to `Array` and `HashMap` to `Map`. In C++, they correspond to `std::vector` and `std::unordered_map`.
@@ -194,6 +227,13 @@ let mut v = vec![10, 20, 30, 40];
 v.swap_remove(1);  // removes 20 by swapping with 40
 assert_eq!(v, vec![10, 40, 30]); // order changed, but O(1)
 ```
+
+## Related Concepts
+
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- Vec/HashMap own their elements; borrowing rules apply
+- [Generics](./generics.md) -- `Vec<T>` and `HashMap<K, V>` are generic types
+- [Iterators](./iterators.md) -- `.iter()`, `.into_iter()`, `.drain()` produce iterators over collections
+- [Trait Bounds](./trait_bounds.md) -- HashMap keys require `Eq + Hash`
 
 ## Quick Reference
 

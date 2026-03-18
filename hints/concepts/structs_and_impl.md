@@ -2,6 +2,34 @@
 
 > **Prerequisites:** None - this is a starting concept
 
+## Quick Reference
+- `struct Foo { x: i32, y: String }` defines a struct with named fields
+- `impl Foo { fn new() -> Self { ... } }` attaches methods and constructors
+- `&self` = read-only borrow, `&mut self` = read-write borrow, `self` = takes ownership (consumed)
+- `Self` is an alias for the type being implemented
+- Field init shorthand: `Self { x, y }` when variable names match field names
+
+## Common Compiler Errors
+
+**`error[E0596]: cannot borrow 'x' as mutable, as it is not declared as mutable`**
+You are calling a `&mut self` method on a variable declared with `let` instead of `let mut`.
+Fix: change `let sensor = Sensor::new(...)` to `let mut sensor = Sensor::new(...)`.
+
+**`error[E0382]: borrow of partially moved value: 'x'`**
+You moved a field out of a struct (e.g., `let name = sensor.name;`) and then tried to use the struct.
+Fix: use `.clone()` to copy the field, or take a reference `&sensor.name` instead.
+
+**`error[E0063]: missing field 'x' in initializer`**
+You forgot to provide a value for every field when constructing the struct.
+Fix: supply all fields, or use `..Default::default()` if the struct implements `Default`.
+
+## When You'll Use This
+- **Lesson 1 (Arena Allocator):** Arena struct with fields (blocks, offset, block_size) and methods
+- **Lesson 5 (RLE Encoding):** `Run<T>` and `RleEncoded<T>` are generic structs
+- **Lesson 6 (Dictionary Encoding):** `Dictionary<T>` with HashMap and Vec for bidirectional lookup
+
+Structs appear in every single lesson -- they are the primary way to organize data.
+
 ## What This Is
 
 Structs are Rust's primary way of creating custom data types that group related values together. If you come from Python, think of them as a typed version of a dataclass. If you come from JavaScript, think of them as objects with a fixed shape enforced at compile time. If you come from C++, they are essentially the same as C++ structs (and classes), but without inheritance.
@@ -151,6 +179,13 @@ struct ReadOnly;
 2. **Forgetting `mut` on the variable, not just the method.** Even if a method takes `&mut self`, the variable holding the struct must be declared `let mut sensor = Sensor::new(...)`. If you write `let sensor = ...`, calling `sensor.record(42.0)` will fail to compile.
 
 3. **Moving out of a struct field.** If you try to take a `String` field out of a struct (e.g., `let name = sensor.name;`), the struct becomes partially moved and can no longer be used as a whole. Use `.clone()` if you need a copy, or take a reference `&sensor.name`.
+
+## Related Concepts
+
+- [Traits and Derive](./traits_and_derive.md) -- adding shared behavior to structs via traits
+- [Generics](./generics.md) -- making structs work with any type (`struct Pair<A, B>`)
+- [Lifetimes](./lifetimes.md) -- structs that borrow data need lifetime parameters
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- `&self` / `&mut self` / `self` are borrowing in action
 
 ## Quick Reference
 

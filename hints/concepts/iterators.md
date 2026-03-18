@@ -2,6 +2,35 @@
 
 > **Prerequisites:** [collections](./collections.md)
 
+## Quick Reference
+- `.iter()` borrows elements (`&T`), `.into_iter()` takes ownership (`T`), `.iter_mut()` borrows mutably (`&mut T`)
+- `.map()`, `.filter()`, `.flat_map()` are **lazy** -- nothing happens until consumed
+- `.collect()` gathers into a collection (needs a type hint: `let v: Vec<_> = ...`)
+- `.fold(init, f)` reduces to a single value (like Python's `functools.reduce`)
+- `.sum()`, `.count()`, `.min()`, `.max()` are eager terminal operations
+
+## Common Compiler Errors
+
+**`warning: unused 'Map' that must be used`**
+Iterators are lazy. Calling `.map()` alone does nothing.
+Fix: consume the iterator with `.collect()`, `.for_each()`, a `for` loop, or another terminal operation.
+
+**`error[E0282]: type annotations needed` (on `.collect()`)**
+The compiler does not know which collection type you want.
+Fix: add a type annotation: `let v: Vec<_> = iter.collect();` or use turbofish: `iter.collect::<Vec<_>>()`.
+
+**`error[E0382]: borrow of moved value` (with `.into_iter()`)**
+`.into_iter()` consumes the collection; you cannot use it afterward.
+Fix: use `.iter()` to borrow instead, or `.clone()` the collection before consuming.
+
+## When You'll Use This
+- **Lesson 18 (Sort-Merge Join):** the merge algorithm conceptually zips two sorted sequences
+- **Lesson 25 (Rule Optimizer):** iterating over rules and applying them sequentially
+- **Lesson 31 (Partitioning):** iterating over rows, `flat_map`/`chain` for merging partitions
+- **Lesson 32 (Distributed Plan):** collecting fragments, iterating over plan children
+
+Iterators are used in nearly every lesson for data processing and transformation.
+
 ## What This Is
 
 Iterators in Rust are a zero-cost abstraction for processing sequences of values. Any type that implements the `Iterator` trait provides a `.next()` method that returns `Some(value)` until the sequence is exhausted, then returns `None`. What makes Rust iterators powerful is **chaining**: you compose a pipeline of transformations (`.map()`, `.filter()`, `.take()`, etc.) and the compiler fuses them into a single loop with no intermediate allocations. The result runs as fast as hand-written loop code.
@@ -193,6 +222,12 @@ let result: Vec<&i32> = v.iter().collect();        // type annotation
 let result2 = v.iter().collect::<Vec<&i32>>();      // turbofish syntax
 let result3 = v.iter().copied().collect::<Vec<_>>(); // _ lets compiler infer element type
 ```
+
+## Related Concepts
+
+- [Collections](./collections.md) -- iterators operate on Vec, HashMap, and other collections
+- [Closures](./closures.md) -- `.map()`, `.filter()`, `.fold()` all take closures as arguments
+- [Ownership and Borrowing](./ownership_and_borrowing.md) -- `.iter()` borrows, `.into_iter()` moves
 
 ## Quick Reference
 

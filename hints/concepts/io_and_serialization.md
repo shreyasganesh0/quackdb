@@ -2,6 +2,35 @@
 
 > **Prerequisites:** [traits_and_derive](./traits_and_derive.md)
 
+## Quick Reference
+- `Read` trait: `.read_exact(&mut buf)` reads exactly N bytes; `.read_to_end(&mut vec)` reads all
+- `Write` trait: `.write_all(&buf)` writes all bytes (always use this over `.write()`)
+- `Seek` trait: `.seek(SeekFrom::Start(n))` repositions within a stream
+- `Cursor<Vec<u8>>` = in-memory buffer implementing `Read + Write + Seek` (great for tests)
+- `BufReader`/`BufWriter` wrap any `Read`/`Write` with an internal buffer for performance
+
+## Common Compiler Errors
+
+**`error[E0277]: the trait bound 'impl Write: Seek' is not satisfied`**
+Your function requires `Seek` but the caller passed a type that only implements `Write`.
+Fix: change the function signature to only require `Write`, or ensure the caller provides a seekable type.
+
+**`error[E0599]: no method named 'write_u32' found`**
+You forgot to import the `byteorder` extension traits.
+Fix: add `use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};`.
+
+**`error[E0015]: cannot call non-const fn 'read_exact' in statics`**
+You tried to do I/O in a const context. I/O is a runtime operation.
+Fix: move the I/O into a function body or initialization block.
+
+## When You'll Use This
+- **Lesson 8 (Compression Frame):** packing struct fields into bytes and reading them back
+- **Lesson 9 (Pages):** using `byteorder` to write/read multi-byte integers
+- **Lesson 10 (Buffer Pool):** converting pages to/from bytes for disk persistence
+- **Lesson 11 (Columnar Write):** writing structured data as bytes, serializing the footer
+- **Lesson 12 (Columnar Read):** seeking to end, reading footer length, seeking back
+- **Lesson 28 (WAL):** converting `WalEntry` to/from bytes for durable storage
+
 ## What This Is
 
 Rust's standard library provides a set of traits for reading and writing bytes: `Read`, `Write`,
@@ -44,13 +73,15 @@ fn read_at_offset(file: &mut (impl Read + Seek), offset: u64) -> std::io::Result
     file.seek(SeekFrom::Start(offset))?;
     let mut buf = [0u8; 4];
     file.read_exact(&mut buf)?;    // read_exact fills the whole buffer or errors
-    buf
+    Ok(buf)
 }
 
-// Cursor: an in-memory buffer that implements Read + Write + Seek
-let mut cursor = Cursor::new(vec![0u8; 1024]);
-cursor.write_all(b"hello").unwrap();
-cursor.seek(SeekFrom::Start(0)).unwrap();
+fn main() {
+    // Cursor: an in-memory buffer that implements Read + Write + Seek
+    let mut cursor = Cursor::new(vec![0u8; 1024]);
+    cursor.write_all(b"hello").unwrap();
+    cursor.seek(SeekFrom::Start(0)).unwrap();
+}
 ```
 
 ## Common Patterns
@@ -140,6 +171,13 @@ fn copy_file(src: &str, dst: &str) -> std::io::Result<()> {
 3. **`write()` vs `write_all()`**: Just like `read()`, a bare `write()` may not write all
    bytes. Always use `write_all()` unless you have a specific reason to handle partial writes
    yourself. In Python, `file.write()` always writes everything; in Rust it does not.
+
+## Related Concepts
+
+- [Traits and Derive](./traits_and_derive.md) -- `Read`, `Write`, `Seek` are traits; any type can implement them
+- [Error Handling](./error_handling.md) -- I/O operations return `io::Result<T>` and use `?` for propagation
+- [Generics](./generics.md) -- `fn write<W: Write>(w: &mut W)` makes functions work with any writer
+- [Slices and Bytes](./slices_and_bytes.md) -- `&[u8]` byte slices are the currency of I/O operations
 
 ## Quick Reference
 

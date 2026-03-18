@@ -2,6 +2,38 @@
 
 > **Prerequisites:** [structs_and_impl](./structs_and_impl.md)
 
+## Quick Reference
+- `trait Name { fn method(&self) -> T; }` defines a shared interface
+- `impl Name for MyType { ... }` implements that interface for a type
+- `#[derive(Debug, Clone, PartialEq, Default)]` auto-generates common trait implementations
+- `Display` must always be implemented manually -- there is no `#[derive(Display)]`
+- `Self` in a trait refers to the implementing type
+
+## Common Compiler Errors
+
+**`error[E0277]: 'MyType' doesn't implement 'std::fmt::Display'`**
+You tried to use `{}` formatting but your type has no `Display` impl.
+Fix: implement `fmt::Display` manually, or use `{:?}` with `#[derive(Debug)]` for debugging.
+
+**`error: cannot find derive macro 'Display' in this scope`**
+You wrote `#[derive(Display)]` -- this does not exist in the standard library.
+Fix: implement `fmt::Display` by hand with `impl fmt::Display for MyType { fn fmt(...) ... }`.
+
+**`error[E0277]: the trait bound 'MyType: Clone' is not satisfied`**
+A derived trait requires all fields to also implement that trait.
+Fix: either derive/implement the missing trait on the field's type, or remove the derive.
+
+## When You'll Use This
+- **Lesson 2 (Types):** implementing `Display`, `PartialEq`; deriving `Debug`, `Clone`, `Hash`
+- **Lesson 4 (DataChunks):** implementing `Display` for tabular output
+- **Lesson 5 (RLE):** trait bounds `Clone + PartialEq` on encode, `Clone` on decode
+- **Lesson 6 (Dictionary):** trait bounds `Eq + Hash` required for HashMap keys
+- **Lesson 10 (Buffer Pool):** defining the `DiskManager` trait
+- **Lesson 14 (Pipelines):** defining `PhysicalOperator`, `DataSource`, `DataSink` traits
+- **Lesson 15 (Scan/Filter/Project):** all operators implement `PhysicalOperator`
+- **Lesson 22 (Logical Plan):** `#[derive(Debug, Clone)]` on all plan types
+- **Lesson 25 (Rule Optimizer):** `OptimizerRule` trait with `name()` and `apply()`
+
 ## What This Is
 
 Traits in Rust are the primary mechanism for defining shared behavior across types. If you come from Java or TypeScript, think of traits as **interfaces**: they declare a set of methods that a type must implement. If you come from C++, they are similar to abstract base classes with pure virtual functions, but without inheritance hierarchies. Python programmers can think of them as **protocols** (from `typing.Protocol`), but enforced at compile time rather than duck-typed at runtime.
@@ -157,6 +189,13 @@ fn main() {
 2. **Orphan rule: you can only implement a trait if you own the trait or the type.** You cannot implement someone else's trait for someone else's type. For example, you cannot `impl Display for Vec<i32>` because you own neither `Display` nor `Vec`. The workaround is the newtype pattern: wrap the foreign type in your own struct.
 
 3. **`Copy` requires `Clone`, and not all types can be `Copy`.** `Copy` means the type is duplicated by simple bitwise copy (like integers and booleans). Types that own heap memory (`String`, `Vec<T>`) cannot implement `Copy`. If you try `#[derive(Copy, Clone)]` on a struct containing a `String`, the compiler will refuse.
+
+## Related Concepts
+
+- [Trait Bounds](./trait_bounds.md) -- constraining generic types to require specific traits
+- [Trait Objects](./trait_objects.md) -- using `dyn Trait` for dynamic dispatch
+- [Generics](./generics.md) -- traits unlock the power of generic programming
+- [Structs and Impl](./structs_and_impl.md) -- structs are the primary types that implement traits
 
 ## Quick Reference
 

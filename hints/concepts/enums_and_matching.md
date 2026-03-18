@@ -2,6 +2,40 @@
 
 > **Prerequisites:** None - this is a starting concept
 
+## Quick Reference
+- `enum E { A, B(i32), C { x: f64 } }` -- variants can carry no data, tuple data, or named fields
+- `match val { E::A => ..., E::B(n) => ..., E::C { x } => ... }` -- must handle every variant
+- `if let E::B(n) = val { ... }` -- match only one variant, ignore the rest
+- `matches!(val, E::A | E::B(_))` -- boolean check against one or more patterns
+- `_` is the wildcard catch-all in match arms
+
+## Common Compiler Errors
+
+**`error[E0004]: non-exhaustive patterns: 'Variant' not covered`**
+Your `match` does not handle every variant of the enum.
+Fix: add the missing arm, or add a `_ => ...` wildcard as the last arm.
+
+**`error[E0382]: use of moved value: 'x'`** (when matching on an owned enum)
+Matching on an owned enum moves data out of the variant.
+Fix: match on a reference (`&my_enum` or `match &val { ... }`) to borrow instead of move.
+
+**`error[E0308]: mismatched types`** (expected enum variant, found something else)
+You are constructing or matching a variant incorrectly.
+Fix: use `E::Variant(value)` not just `Variant(value)` -- enum variants must be qualified.
+
+## When You'll Use This
+- **Lesson 2 (Types):** `LogicalType`, `PhysicalType`, and `ScalarValue` are all enums
+- **Lesson 8 (Compression Frame):** dispatching compress/decompress based on `CompressionAlgorithm`
+- **Lesson 9 (Pages):** converting `PageType` to/from a `u8` discriminant
+- **Lesson 12 (Columnar Read):** matching on `PredicateOp` variants for pruning
+- **Lesson 13 (Expressions):** `Expression` enum with five variants
+- **Lesson 17 (Hash Join):** `JoinType` enum selects join behavior
+- **Lesson 20 (SQL Lexer):** `Keyword` and `Token` enums
+- **Lesson 21 (SQL Parser):** `Statement`, `Expr`, `TableRef` enums
+- **Lesson 22 (Logical Plan):** `LogicalPlan` and `LogicalExpr` enums
+- **Lesson 31 (Partitioning):** `PartitionScheme` enum with data-carrying variants
+- **Lesson 32 (Distributed Plan):** `ExchangeType` and `LogicalPlan` enums
+
 ## What This Is
 
 Rust enums are far more powerful than enums in most other languages. In C++ or Java, an enum is essentially a named integer constant. In Rust, each variant of an enum can **carry data** of different types and shapes. This makes Rust enums equivalent to **tagged unions** (C/C++), **discriminated unions** in TypeScript, or **algebraic data types** in Haskell. Python and JavaScript have no direct equivalent -- the closest would be a class hierarchy where each subclass holds different data, but Rust enums are a single type checked at compile time.
@@ -181,6 +215,12 @@ fn describe(cmd: &DrawCommand) {
     ```
 
 3. **No implicit fallthrough.** Unlike C/C++ `switch` statements, Rust `match` arms do not fall through to the next arm. Each arm is independent. To match multiple patterns in one arm, use the `|` (or) operator: `Token::Number(_) | Token::Identifier(_) => { ... }`.
+
+## Related Concepts
+
+- [Error Handling](./error_handling.md) -- `Option<T>` and `Result<T, E>` are the standard library's most important enums
+- [Box and Recursive Types](./box_and_recursive_types.md) -- recursive enums need `Box` for indirection
+- [Traits and Derive](./traits_and_derive.md) -- `#[derive(Debug)]` works on enums just like structs
 
 ## Quick Reference
 
