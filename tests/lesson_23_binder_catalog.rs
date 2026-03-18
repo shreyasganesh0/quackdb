@@ -1,4 +1,14 @@
-//! Lesson 23: Binder & Catalog Tests
+//! # Lesson 23: Binder & Catalog — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Catalog — create and get (`test_catalog_create_get`)
+//! 2. Catalog — table helpers (`test_table_info_helpers`)
+//! 3. Catalog edge cases (not found, duplicate create, drop)
+//! 4. Binder — simple SELECT (`test_bind_simple_select`, `test_bind_select_star`)
+//! 5. Binder — error cases (unknown table, unknown column)
+//! 6. Binder — WHERE, alias, aggregate
+//! 7. Scope resolution (`test_bind_scope_resolution`)
+//! 8. Binder — JOIN integration (`test_bind_join`)
 
 use quackdb::types::LogicalType;
 use quackdb::planner::catalog::*;
@@ -27,6 +37,8 @@ fn setup_catalog() -> Catalog {
     catalog
 }
 
+// ── 1. Catalog — create and get ─────────────────────────────────────
+
 #[test]
 fn test_catalog_create_get() {
     let catalog = setup_catalog();
@@ -35,18 +47,23 @@ fn test_catalog_create_get() {
     assert_eq!(users.columns[0].name, "id");
 }
 
+// ── 2. Catalog — table helpers ──────────────────────────────────────
+
+#[test]
+fn test_table_info_helpers() {
+    let catalog = setup_catalog();
+    let users = catalog.get_table("users").unwrap();
+    assert!(users.find_column("id").is_some());
+    assert!(users.find_column("xyz").is_none());
+    assert_eq!(users.schema_types().len(), 3);
+}
+
+// ── 3. Catalog edge cases ───────────────────────────────────────────
+
 #[test]
 fn test_catalog_table_not_found() {
     let catalog = setup_catalog();
     assert!(catalog.get_table("nonexistent").is_none(), "catalog lookup for unknown table should return None, not panic");
-}
-
-#[test]
-fn test_catalog_drop_table() {
-    let mut catalog = setup_catalog();
-    assert!(catalog.get_table("users").is_some());
-    catalog.drop_table("users").unwrap();
-    assert!(catalog.get_table("users").is_none(), "dropped table should no longer be visible in the catalog");
 }
 
 #[test]
@@ -58,6 +75,23 @@ fn test_catalog_duplicate_create() {
     });
     assert!(result.is_err(), "catalog should reject duplicate table creation to maintain naming uniqueness");
 }
+
+#[test]
+fn test_catalog_drop_table() {
+    let mut catalog = setup_catalog();
+    assert!(catalog.get_table("users").is_some());
+    catalog.drop_table("users").unwrap();
+    assert!(catalog.get_table("users").is_none(), "dropped table should no longer be visible in the catalog");
+}
+
+#[test]
+fn test_catalog_empty() {
+    // Edge case: empty catalog with no tables
+    let catalog = Catalog::new();
+    assert!(catalog.get_table("anything").is_none(), "empty catalog must return None for any table lookup");
+}
+
+// ── 4. Binder — simple SELECT ───────────────────────────────────────
 
 #[test]
 fn test_bind_simple_select() {
@@ -79,6 +113,8 @@ fn test_bind_select_star() {
     assert_eq!(schema.column_count(), 3, "SELECT * should expand to all columns from the table schema");
 }
 
+// ── 5. Binder — error cases ────────────────────────────────────────
+
 #[test]
 fn test_bind_unknown_table() {
     let catalog = setup_catalog();
@@ -97,6 +133,8 @@ fn test_bind_unknown_column() {
     assert!(result.is_err(), "binder should reject references to columns not in the table schema");
 }
 
+// ── 6. Binder — WHERE, alias, aggregate ─────────────────────────────
+
 #[test]
 fn test_bind_where_clause() {
     let catalog = setup_catalog();
@@ -106,18 +144,6 @@ fn test_bind_where_clause() {
     // Plan should have a Filter node
     let pp = plan.pretty_print();
     assert!(pp.contains("Filter") || pp.contains("filter"));
-}
-
-#[test]
-fn test_bind_join() {
-    let catalog = setup_catalog();
-    let binder = Binder::new(&catalog);
-    let stmt = Parser::parse_sql(
-        "SELECT users.name, orders.amount FROM users INNER JOIN orders ON users.id = orders.user_id"
-    ).unwrap();
-    let plan = binder.bind(&stmt).unwrap();
-    let schema = plan.schema();
-    assert_eq!(schema.column_count(), 2);
 }
 
 #[test]
@@ -140,6 +166,8 @@ fn test_bind_aggregate() {
     let schema = plan.schema();
     assert_eq!(schema.column_count(), 2);
 }
+
+// ── 7. Scope resolution ────────────────────────────────────────────
 
 #[test]
 fn test_bind_scope_resolution() {
@@ -165,11 +193,16 @@ fn test_bind_scope_resolution() {
     assert!(result.is_ok());
 }
 
+// ── 8. Binder — JOIN integration ────────────────────────────────────
+
 #[test]
-fn test_table_info_helpers() {
+fn test_bind_join() {
     let catalog = setup_catalog();
-    let users = catalog.get_table("users").unwrap();
-    assert!(users.find_column("id").is_some());
-    assert!(users.find_column("xyz").is_none());
-    assert_eq!(users.schema_types().len(), 3);
+    let binder = Binder::new(&catalog);
+    let stmt = Parser::parse_sql(
+        "SELECT users.name, orders.amount FROM users INNER JOIN orders ON users.id = orders.user_id"
+    ).unwrap();
+    let plan = binder.bind(&stmt).unwrap();
+    let schema = plan.schema();
+    assert_eq!(schema.column_count(), 2);
 }

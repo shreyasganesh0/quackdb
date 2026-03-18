@@ -1,4 +1,13 @@
-//! Lesson 02: Data Types & Type System Tests
+//! # Lesson 02: Data Types & Type System — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Basic type properties (`test_logical_to_physical_mapping`, `test_byte_widths`)
+//! 2. Type categories and classification (`test_type_categories`)
+//! 3. Scalar value construction and identity (`test_scalar_value_types`, `test_scalar_value_is_null`)
+//! 4. Serialization roundtrips (`test_scalar_roundtrip`, `test_scalar_varchar_roundtrip`)
+//! 5. Type coercion and casting (`test_type_coercion`, `test_can_cast`, `test_scalar_cast`)
+//! 6. Edge cases (empty strings, extreme values, display formatting)
+//! 7. Composite types (Decimal)
 
 use quackdb::types::{LogicalType, PhysicalType, ScalarValue};
 
@@ -22,6 +31,8 @@ fn assert_scalar_roundtrip(val: ScalarValue) {
         .expect("from_bytes should succeed for a value produced by to_bytes");
     assert_eq!(decoded, val, "Roundtrip failed for {:?}", val);
 }
+
+// ── 1. Basic type properties ────────────────────────────────────────
 
 #[test]
 fn test_logical_to_physical_mapping() {
@@ -54,6 +65,8 @@ fn test_byte_widths() {
     assert_eq!(LogicalType::Blob.byte_width(), None, "variable-length types must return None for byte_width");
 }
 
+// ── 2. Type categories ──────────────────────────────────────────────
+
 #[test]
 fn test_type_categories() {
     assert!(LogicalType::Int32.is_numeric());
@@ -71,6 +84,8 @@ fn test_type_categories() {
     assert!(!LogicalType::Int32.is_float());
 }
 
+// ── 3. Scalar value construction and identity ───────────────────────
+
 #[test]
 fn test_scalar_value_types() {
     assert_scalar_type(ScalarValue::Boolean(true), LogicalType::Boolean);
@@ -87,6 +102,8 @@ fn test_scalar_value_is_null() {
     assert!(!ScalarValue::Int32(0).is_null(), "zero is a valid value, not NULL — NULL represents missing data");
     assert!(!ScalarValue::Boolean(false).is_null(), "false is a valid value, not NULL");
 }
+
+// ── 4. Serialization roundtrips ─────────────────────────────────────
 
 #[test]
 fn test_scalar_roundtrip() {
@@ -111,6 +128,23 @@ fn test_scalar_roundtrip() {
 fn test_scalar_varchar_roundtrip() {
     assert_scalar_roundtrip(ScalarValue::Varchar("hello world".into()));
 }
+
+#[test]
+fn test_scalar_roundtrip_empty_string() {
+    // Edge case: empty varchar must survive serialization
+    assert_scalar_roundtrip(ScalarValue::Varchar("".into()));
+}
+
+#[test]
+fn test_scalar_roundtrip_extreme_values() {
+    // Edge case: minimum and maximum values for integer types
+    assert_scalar_roundtrip(ScalarValue::Int32(i32::MIN));
+    assert_scalar_roundtrip(ScalarValue::Int32(i32::MAX));
+    assert_scalar_roundtrip(ScalarValue::Int64(i64::MIN));
+    assert_scalar_roundtrip(ScalarValue::UInt64(u64::MAX));
+}
+
+// ── 5. Type coercion and casting ────────────────────────────────────
 
 #[test]
 fn test_type_coercion() {
@@ -154,12 +188,7 @@ fn test_scalar_cast() {
     assert_eq!(casted, ScalarValue::Float64(42.0), "int-to-float cast must preserve the numeric value");
 }
 
-#[test]
-fn test_decimal_type() {
-    let decimal = LogicalType::Decimal { precision: 10, scale: 2 };
-    assert!(decimal.is_numeric(), "Decimal is a numeric type despite having precision/scale metadata");
-    assert!(decimal.byte_width().is_some(), "Decimal has a fixed in-memory width for columnar storage");
-}
+// ── 6. Edge cases — display and formatting ──────────────────────────
 
 #[test]
 fn test_logical_type_display() {
@@ -178,4 +207,21 @@ fn test_scalar_display() {
     assert_eq!(format!("{}", ScalarValue::Varchar("hello".into())), "hello");
     let null_display = format!("{}", ScalarValue::Null(LogicalType::Int32));
     assert!(null_display.contains("NULL") || null_display.contains("null"));
+}
+
+#[test]
+fn test_scalar_display_zero_and_negative() {
+    // Edge case: zero and negative values in display
+    assert_eq!(format!("{}", ScalarValue::Int32(0)), "0", "zero should display as '0', not empty");
+    let neg_display = format!("{}", ScalarValue::Int32(-1));
+    assert!(neg_display.contains("-1"), "negative values must include the minus sign");
+}
+
+// ── 7. Composite types ──────────────────────────────────────────────
+
+#[test]
+fn test_decimal_type() {
+    let decimal = LogicalType::Decimal { precision: 10, scale: 2 };
+    assert!(decimal.is_numeric(), "Decimal is a numeric type despite having precision/scale metadata");
+    assert!(decimal.byte_width().is_some(), "Decimal has a fixed in-memory width for columnar storage");
 }

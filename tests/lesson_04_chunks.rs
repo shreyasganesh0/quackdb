@@ -1,7 +1,18 @@
-//! Lesson 04: Data Chunks Tests
+//! # Lesson 04: Data Chunks — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Basic construction (`test_chunk_creation`, `test_chunk_with_capacity`)
+//! 2. Appending rows and reading values (`test_chunk_append_row`, `test_chunk_multi_type`)
+//! 3. Schema and metadata (`test_chunk_types`, `test_chunk_display`)
+//! 4. Edge cases (empty chunks, single-row chunks)
+//! 5. Mutation and lifecycle (`test_chunk_reset`, `test_chunk_column_access`)
+//! 6. Slicing and flattening (`test_chunk_slice`, `test_chunk_flatten`)
+//! 7. ChunkCollection — integration across multiple chunks
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::{DataChunk, ChunkCollection};
+
+// ── 1. Basic construction ───────────────────────────────────────────
 
 #[test]
 fn test_chunk_creation() {
@@ -16,6 +27,8 @@ fn test_chunk_with_capacity() {
     assert_eq!(chunk.column_count(), 2);
     assert_eq!(chunk.count(), 0);
 }
+
+// ── 2. Appending rows and reading values ────────────────────────────
 
 #[test]
 fn test_chunk_append_row() {
@@ -58,6 +71,87 @@ fn test_chunk_multi_type() {
     assert_eq!(chunk.column(2).get_value(1), ScalarValue::Boolean(false));
 }
 
+// ── 3. Schema and metadata ──────────────────────────────────────────
+
+#[test]
+fn test_chunk_types() {
+    let chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64]);
+    let types = chunk.types();
+    assert_eq!(types, vec![LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64], "types() must return the schema in column order");
+}
+
+#[test]
+fn test_chunk_display() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar]);
+    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Varchar("hello".into())]);
+    chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Varchar("world".into())]);
+
+    let display = format!("{}", chunk);
+    assert!(!display.is_empty(), "Display impl must produce a non-empty string for a populated chunk");
+    // Should contain at least the values
+    assert!(display.contains("1") || display.contains("hello"));
+}
+
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_chunk_empty_no_rows() {
+    // Edge case: chunk with schema but no rows appended
+    let chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar]);
+    assert_eq!(chunk.count(), 0, "empty chunk must report zero rows");
+    assert_eq!(chunk.column_count(), 2, "empty chunk still has columns defined");
+}
+
+#[test]
+fn test_chunk_single_row() {
+    // Edge case: chunk with exactly one row
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+    assert_eq!(chunk.count(), 1, "single-row chunk must report count 1");
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(42));
+}
+
+#[test]
+fn test_chunk_with_null_values() {
+    // Edge case: appending NULL values in a row
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar]);
+    chunk.append_row(&[ScalarValue::Null(LogicalType::Int32), ScalarValue::Varchar("valid".into())]);
+    assert_eq!(chunk.count(), 1, "rows with NULL values must still be counted");
+}
+
+// ── 5. Mutation and lifecycle ───────────────────────────────────────
+
+#[test]
+fn test_chunk_reset() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Float64]);
+    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Float64(1.0)]);
+    chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Float64(2.0)]);
+    assert_eq!(chunk.count(), 2);
+
+    chunk.reset();
+    assert_eq!(chunk.count(), 0, "reset must clear the row count to zero");
+
+    // Can reuse after reset
+    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Float64(10.0)]);
+    assert_eq!(chunk.count(), 1, "chunk must be reusable after reset");
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(10), "values appended after reset must overwrite old data");
+}
+
+#[test]
+fn test_chunk_column_access() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
+    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Int64(20)]);
+
+    // Mutable access
+    let col = chunk.column_mut(0);
+    col.set_value(0, ScalarValue::Int32(99));
+
+    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(99), "mutable column access must persist the updated value");
+    assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int64(20), "mutating column 0 must not affect column 1");
+}
+
+// ── 6. Slicing and flattening ───────────────────────────────────────
+
 #[test]
 fn test_chunk_slice() {
     let mut chunk = DataChunk::new(&[LogicalType::Int32]);
@@ -89,39 +183,14 @@ fn test_chunk_flatten() {
     //  depends on how DataChunk is constructed)
 }
 
-#[test]
-fn test_chunk_reset() {
-    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Float64]);
-    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Float64(1.0)]);
-    chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Float64(2.0)]);
-    assert_eq!(chunk.count(), 2);
-
-    chunk.reset();
-    assert_eq!(chunk.count(), 0, "reset must clear the row count to zero");
-
-    // Can reuse after reset
-    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Float64(10.0)]);
-    assert_eq!(chunk.count(), 1, "chunk must be reusable after reset");
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(10), "values appended after reset must overwrite old data");
-}
+// ── 7. ChunkCollection — integration ────────────────────────────────
 
 #[test]
-fn test_chunk_types() {
-    let chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64]);
-    let types = chunk.types();
-    assert_eq!(types, vec![LogicalType::Int32, LogicalType::Varchar, LogicalType::Float64], "types() must return the schema in column order");
-}
-
-#[test]
-fn test_chunk_display() {
-    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Varchar]);
-    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Varchar("hello".into())]);
-    chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Varchar("world".into())]);
-
-    let display = format!("{}", chunk);
-    assert!(!display.is_empty(), "Display impl must produce a non-empty string for a populated chunk");
-    // Should contain at least the values
-    assert!(display.contains("1") || display.contains("hello"));
+fn test_chunk_collection_empty() {
+    let types = vec![LogicalType::Int32];
+    let collection = ChunkCollection::new(types);
+    assert_eq!(collection.chunk_count(), 0);
+    assert_eq!(collection.total_count(), 0, "empty collection must report zero total rows");
 }
 
 #[test]
@@ -145,22 +214,14 @@ fn test_chunk_collection() {
 }
 
 #[test]
-fn test_chunk_collection_empty() {
+fn test_chunk_collection_single_chunk() {
+    // Edge case: collection with exactly one chunk
     let types = vec![LogicalType::Int32];
-    let collection = ChunkCollection::new(types);
-    assert_eq!(collection.chunk_count(), 0);
-    assert_eq!(collection.total_count(), 0, "empty collection must report zero total rows");
-}
+    let mut collection = ChunkCollection::new(types.clone());
+    let mut chunk = DataChunk::new(&types);
+    chunk.append_row(&[ScalarValue::Int32(99)]);
+    collection.append(chunk);
 
-#[test]
-fn test_chunk_column_access() {
-    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
-    chunk.append_row(&[ScalarValue::Int32(10), ScalarValue::Int64(20)]);
-
-    // Mutable access
-    let col = chunk.column_mut(0);
-    col.set_value(0, ScalarValue::Int32(99));
-
-    assert_eq!(chunk.column(0).get_value(0), ScalarValue::Int32(99), "mutable column access must persist the updated value");
-    assert_eq!(chunk.column(1).get_value(0), ScalarValue::Int64(20), "mutating column 0 must not affect column 1");
+    assert_eq!(collection.chunk_count(), 1, "single-chunk collection must report chunk_count 1");
+    assert_eq!(collection.total_count(), 1);
 }

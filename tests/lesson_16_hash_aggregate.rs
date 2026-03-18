@@ -1,4 +1,13 @@
-//! Lesson 16: Hash Aggregation Tests
+//! # Lesson 16: Hash Aggregation — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Global aggregation — no GROUP BY (`test_aggregate_global`)
+//! 2. Simple grouped SUM (`test_aggregate_sum`)
+//! 3. COUNT aggregation (`test_aggregate_count`)
+//! 4. MIN/MAX aggregation (`test_aggregate_min_max`)
+//! 5. AVG aggregation (`test_aggregate_avg`)
+//! 6. Edge cases (empty input, null handling, single group)
+//! 7. Hash table resize under load (`test_aggregate_hash_table_resize`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::DataChunk;
@@ -20,6 +29,29 @@ fn make_agg_data() -> DataChunk {
     chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(50)]);
     chunk
 }
+
+// ── 1. Global aggregation ───────────────────────────────────────────
+
+#[test]
+fn test_aggregate_global() {
+    // No GROUP BY — global aggregation
+    let mut chunk = DataChunk::new(&[LogicalType::Int64]);
+    chunk.append_row(&[ScalarValue::Int64(10)]);
+    chunk.append_row(&[ScalarValue::Int64(20)]);
+    chunk.append_row(&[ScalarValue::Int64(30)]);
+
+    let mut ht = AggregateHashTable::new(
+        vec![],  // no group by
+        vec![AggregateType::Sum, AggregateType::Count],
+        vec![LogicalType::Int64, LogicalType::Int64],
+    );
+    ht.add_chunk(&[], &[0, 0], &chunk).unwrap();
+
+    let results = ht.finalize().unwrap();
+    assert_eq!(ht.group_count(), 1, "global aggregation (no GROUP BY) produces exactly one group for the entire input");
+}
+
+// ── 2. Simple grouped SUM ───────────────────────────────────────────
 
 #[test]
 fn test_aggregate_sum() {
@@ -52,6 +84,8 @@ fn test_aggregate_sum() {
     assert_eq!(group_sums, vec![(1, 90), (2, 60)], "SUM should accumulate all values within each group");
 }
 
+// ── 3. COUNT aggregation ────────────────────────────────────────────
+
 #[test]
 fn test_aggregate_count() {
     let chunk = make_agg_data();
@@ -81,6 +115,8 @@ fn test_aggregate_count() {
     assert_eq!(group_counts, vec![(1, 3), (2, 2)], "COUNT should tally the number of rows per group");
 }
 
+// ── 4. MIN/MAX aggregation ──────────────────────────────────────────
+
 #[test]
 fn test_aggregate_min_max() {
     let chunk = make_agg_data();
@@ -106,6 +142,8 @@ fn test_aggregate_min_max() {
     assert_eq!(group_minmax, vec![(1, 10, 50), (2, 20, 40)], "MIN/MAX should track extreme values independently within each group");
 }
 
+// ── 5. AVG aggregation ──────────────────────────────────────────────
+
 #[test]
 fn test_aggregate_avg() {
     let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Float64]);
@@ -130,24 +168,7 @@ fn test_aggregate_avg() {
     }
 }
 
-#[test]
-fn test_aggregate_global() {
-    // No GROUP BY — global aggregation
-    let mut chunk = DataChunk::new(&[LogicalType::Int64]);
-    chunk.append_row(&[ScalarValue::Int64(10)]);
-    chunk.append_row(&[ScalarValue::Int64(20)]);
-    chunk.append_row(&[ScalarValue::Int64(30)]);
-
-    let mut ht = AggregateHashTable::new(
-        vec![],  // no group by
-        vec![AggregateType::Sum, AggregateType::Count],
-        vec![LogicalType::Int64, LogicalType::Int64],
-    );
-    ht.add_chunk(&[], &[0, 0], &chunk).unwrap();
-
-    let results = ht.finalize().unwrap();
-    assert_eq!(ht.group_count(), 1, "global aggregation (no GROUP BY) produces exactly one group for the entire input");
-}
+// ── 6. Edge cases ───────────────────────────────────────────────────
 
 #[test]
 fn test_aggregate_empty() {
@@ -166,24 +187,8 @@ fn test_aggregate_empty() {
 }
 
 #[test]
-fn test_aggregate_hash_table_resize() {
-    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
-    for i in 0..1000 {
-        chunk.append_row(&[ScalarValue::Int32(i), ScalarValue::Int64(i as i64 * 10)]);
-    }
-
-    let mut ht = AggregateHashTable::new(
-        vec![LogicalType::Int32],
-        vec![AggregateType::Sum],
-        vec![LogicalType::Int64],
-    );
-    ht.add_chunk(&[0], &[1], &chunk).unwrap();
-
-    assert_eq!(ht.group_count(), 1000, "hash table should resize dynamically to handle many distinct groups");
-}
-
-#[test]
 fn test_aggregate_with_nulls() {
+    // SUM should skip null values per SQL semantics
     let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
     chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(10)]);
     chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Null(LogicalType::Int64)]);
@@ -205,4 +210,43 @@ fn test_aggregate_with_nulls() {
             }
         }
     }
+}
+
+#[test]
+fn test_aggregate_single_group() {
+    // Edge case: all rows belong to the same group
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
+    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(10)]);
+    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(20)]);
+
+    let mut ht = AggregateHashTable::new(
+        vec![LogicalType::Int32],
+        vec![AggregateType::Sum],
+        vec![LogicalType::Int64],
+    );
+    ht.add_chunk(&[0], &[1], &chunk).unwrap();
+
+    let results = ht.finalize().unwrap();
+    let total_rows: usize = results.iter().map(|c| c.count()).sum();
+    assert_eq!(total_rows, 1, "when all rows have the same group key, output should be a single row");
+}
+
+// ── 7. Hash table resize ───────────────────────────────────────────
+
+#[test]
+fn test_aggregate_hash_table_resize() {
+    // Test that the hash table handles many distinct groups without corruption
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
+    for i in 0..1000 {
+        chunk.append_row(&[ScalarValue::Int32(i), ScalarValue::Int64(i as i64 * 10)]);
+    }
+
+    let mut ht = AggregateHashTable::new(
+        vec![LogicalType::Int32],
+        vec![AggregateType::Sum],
+        vec![LogicalType::Int64],
+    );
+    ht.add_chunk(&[0], &[1], &chunk).unwrap();
+
+    assert_eq!(ht.group_count(), 1000, "hash table should resize dynamically to handle many distinct groups");
 }

@@ -1,4 +1,12 @@
-//! Lesson 33: Shuffle & Exchange Tests
+//! # Lesson 33: Shuffle & Exchange — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Exchange channel basics (`test_exchange_channel`)
+//! 2. Gather operator (`test_gather_operator`)
+//! 3. Broadcast operator (`test_broadcast`)
+//! 4. Edge cases (backpressure, empty channel)
+//! 5. Shuffle routing (`test_shuffle_routing`)
+//! 6. Distributed executor — full integration (`test_distributed_executor`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::DataChunk;
@@ -16,6 +24,8 @@ fn make_chunk(values: Vec<i32>) -> DataChunk {
     chunk
 }
 
+// ── 1. Exchange channel basics ──────────────────────────────────────
+
 #[test]
 fn test_exchange_channel() {
     let (sender, receiver) = ExchangeChannel::new();
@@ -27,6 +37,8 @@ fn test_exchange_channel() {
     assert_eq!(received.count(), 3, "exchange channel should deliver the complete chunk without losing rows");
     assert!(receiver.recv().is_none(), "after sender.close(), recv should return None to signal end-of-stream");
 }
+
+// ── 2. Gather operator ─────────────────────────────────────────────
 
 #[test]
 fn test_gather_operator() {
@@ -47,6 +59,8 @@ fn test_gather_operator() {
     assert_eq!(total, 4, "gather operator should merge all chunks from all input channels into one stream");
 }
 
+// ── 3. Broadcast operator ───────────────────────────────────────────
+
 #[test]
 fn test_broadcast() {
     let (s1, r1) = ExchangeChannel::new();
@@ -62,6 +76,46 @@ fn test_broadcast() {
     assert_eq!(c2.count(), 2, "broadcast must send a full copy of the data to every receiver");
 }
 
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_backpressure() {
+    // Send many chunks without receiving — tests channel buffering
+    let (sender, receiver) = ExchangeChannel::new();
+    for i in 0..100 {
+        let chunk = make_chunk(vec![i]);
+        sender.send(chunk).unwrap();
+    }
+    sender.close();
+
+    let mut count = 0;
+    while let Some(c) = receiver.recv() {
+        count += c.count();
+    }
+    assert_eq!(count, 100, "exchange channels must handle backpressure without losing data when sender outpaces receiver");
+}
+
+#[test]
+fn test_exchange_channel_empty() {
+    // Edge case: closing a channel immediately without sending
+    let (sender, receiver) = ExchangeChannel::new();
+    sender.close();
+    assert!(receiver.recv().is_none(), "recv on a channel closed without sends must return None immediately");
+}
+
+#[test]
+fn test_exchange_channel_single_row() {
+    // Edge case: sending a single-row chunk
+    let (sender, receiver) = ExchangeChannel::new();
+    sender.send(make_chunk(vec![42])).unwrap();
+    sender.close();
+
+    let received = receiver.recv().unwrap();
+    assert_eq!(received.count(), 1, "single-row chunk must be delivered intact");
+}
+
+// ── 5. Shuffle routing ─────────────────────────────────────────────
+
 #[test]
 fn test_shuffle_routing() {
     let (s1, r1) = ExchangeChannel::new();
@@ -71,6 +125,8 @@ fn test_shuffle_routing() {
     // Note: routing depends on hash implementation, just verify no crash
     // and that all data arrives somewhere
 }
+
+// ── 6. Distributed executor — full integration ──────────────────────
 
 #[test]
 fn test_distributed_executor() {
@@ -103,21 +159,4 @@ fn test_distributed_executor() {
     let results = executor.execute(fragments, &catalog).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
     assert_eq!(total, 10, "distributed executor should return all rows from the source table after plan execution");
-}
-
-#[test]
-fn test_backpressure() {
-    let (sender, receiver) = ExchangeChannel::new();
-    // Send many chunks without receiving
-    for i in 0..100 {
-        let chunk = make_chunk(vec![i]);
-        sender.send(chunk).unwrap();
-    }
-    sender.close();
-
-    let mut count = 0;
-    while let Some(c) = receiver.recv() {
-        count += c.count();
-    }
-    assert_eq!(count, 100, "exchange channels must handle backpressure without losing data when sender outpaces receiver");
 }

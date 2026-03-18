@@ -1,4 +1,15 @@
-//! Lesson 25: Rule-Based Optimizer Tests
+//! # Lesson 25: Rule-Based Optimizer — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Default rules exist (`test_default_rules`)
+//! 2. Constant folding (`test_constant_folding`)
+//! 3. Filter merge (`test_filter_merge`)
+//! 4. Edge cases (identity transforms)
+//! 5. Predicate pushdown — through projection (`test_predicate_pushdown_through_projection`)
+//! 6. Predicate pushdown — through join (`test_predicate_pushdown_through_join`)
+//! 7. Projection pushdown (`test_projection_pushdown`)
+//! 8. Limit pushdown (`test_limit_pushdown`)
+//! 9. Fixpoint optimization (`test_optimize_fixpoint`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::planner::logical_plan::*;
@@ -11,6 +22,87 @@ fn make_scan(name: &str, cols: Vec<(&str, LogicalType)>) -> LogicalPlan {
         projection: None,
     }
 }
+
+// ── 1. Default rules ────────────────────────────────────────────────
+
+#[test]
+fn test_default_rules() {
+    let rules = default_rules();
+    assert!(!rules.is_empty(), "default_rules() must provide at least one optimization rule for the optimizer to be useful");
+}
+
+// ── 2. Constant folding ─────────────────────────────────────────────
+
+#[test]
+fn test_constant_folding() {
+    // Verifies that the expression 2 + 3 is folded to 5 at plan time
+    let scan = make_scan("t", vec![("a", LogicalType::Int32)]);
+    let filter = LogicalPlan::Filter {
+        predicate: LogicalExpr::BinaryOp {
+            op: quackdb::sql::ast::BinaryOpAst::Add,
+            left: Box::new(LogicalExpr::Literal(ScalarValue::Int32(2))),
+            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(3))),
+        },
+        input: Box::new(scan),
+    };
+
+    let rule = ConstantFolding;
+    let optimized = rule.apply(filter).expect("constant folding should succeed on purely literal expressions like 2 + 3");
+    // 2 + 3 should be folded to 5
+}
+
+// ── 3. Filter merge ─────────────────────────────────────────────────
+
+#[test]
+fn test_filter_merge() {
+    // Two stacked filters should merge into a single filter with AND
+    let scan = make_scan("t", vec![("a", LogicalType::Int32)]);
+    let filter1 = LogicalPlan::Filter {
+        predicate: LogicalExpr::BinaryOp {
+            op: quackdb::sql::ast::BinaryOpAst::GreaterThan,
+            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "a".to_string() }),
+            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(5))),
+        },
+        input: Box::new(scan),
+    };
+    let filter2 = LogicalPlan::Filter {
+        predicate: LogicalExpr::BinaryOp {
+            op: quackdb::sql::ast::BinaryOpAst::LessThan,
+            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "a".to_string() }),
+            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(10))),
+        },
+        input: Box::new(filter1),
+    };
+
+    let rule = FilterMerge;
+    let optimized = rule.apply(filter2).unwrap();
+
+    // Two filters should be merged into one with AND
+    let pp = optimized.pretty_print();
+    // Should have only one filter node
+}
+
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_constant_folding_non_constant() {
+    // Edge case: expression with a column ref should not be fully folded
+    let scan = make_scan("t", vec![("a", LogicalType::Int32)]);
+    let filter = LogicalPlan::Filter {
+        predicate: LogicalExpr::BinaryOp {
+            op: quackdb::sql::ast::BinaryOpAst::Add,
+            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "a".to_string() }),
+            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(1))),
+        },
+        input: Box::new(scan),
+    };
+
+    let rule = ConstantFolding;
+    // Should succeed but not fully fold since one operand is a column reference
+    let _optimized = rule.apply(filter).expect("constant folding on mixed expressions should not panic");
+}
+
+// ── 5. Predicate pushdown — through projection ─────────────────────
 
 #[test]
 fn test_predicate_pushdown_through_projection() {
@@ -37,6 +129,8 @@ fn test_predicate_pushdown_through_projection() {
     let pp = optimized.pretty_print();
     assert!(pp.contains("Projection") || pp.contains("projection"), "predicate pushdown should move the filter below the projection, not eliminate it");
 }
+
+// ── 6. Predicate pushdown — through join ────────────────────────────
 
 #[test]
 fn test_predicate_pushdown_through_join() {
@@ -67,50 +161,7 @@ fn test_predicate_pushdown_through_join() {
     assert!(pp.contains("Join") || pp.contains("join"), "filter on column 'x' should be pushed to the left child since join preserves the join node");
 }
 
-#[test]
-fn test_constant_folding() {
-    let scan = make_scan("t", vec![("a", LogicalType::Int32)]);
-    let filter = LogicalPlan::Filter {
-        predicate: LogicalExpr::BinaryOp {
-            op: quackdb::sql::ast::BinaryOpAst::Add,
-            left: Box::new(LogicalExpr::Literal(ScalarValue::Int32(2))),
-            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(3))),
-        },
-        input: Box::new(scan),
-    };
-
-    let rule = ConstantFolding;
-    let optimized = rule.apply(filter).expect("constant folding should succeed on purely literal expressions like 2 + 3");
-    // 2 + 3 should be folded to 5
-}
-
-#[test]
-fn test_filter_merge() {
-    let scan = make_scan("t", vec![("a", LogicalType::Int32)]);
-    let filter1 = LogicalPlan::Filter {
-        predicate: LogicalExpr::BinaryOp {
-            op: quackdb::sql::ast::BinaryOpAst::GreaterThan,
-            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "a".to_string() }),
-            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(5))),
-        },
-        input: Box::new(scan),
-    };
-    let filter2 = LogicalPlan::Filter {
-        predicate: LogicalExpr::BinaryOp {
-            op: quackdb::sql::ast::BinaryOpAst::LessThan,
-            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "a".to_string() }),
-            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(10))),
-        },
-        input: Box::new(filter1),
-    };
-
-    let rule = FilterMerge;
-    let optimized = rule.apply(filter2).unwrap();
-
-    // Two filters should be merged into one with AND
-    let pp = optimized.pretty_print();
-    // Should have only one filter node
-}
+// ── 7. Projection pushdown ─────────────────────────────────────────
 
 #[test]
 fn test_projection_pushdown() {
@@ -131,6 +182,8 @@ fn test_projection_pushdown() {
 
     // Scan should now have a projection that only reads column 'a'
 }
+
+// ── 8. Limit pushdown ──────────────────────────────────────────────
 
 #[test]
 fn test_limit_pushdown() {
@@ -153,6 +206,8 @@ fn test_limit_pushdown() {
     let _optimized = rule.apply(limit).expect("limit pushdown should convert LIMIT over SORT into a top-N operation");
 }
 
+// ── 9. Fixpoint optimization ────────────────────────────────────────
+
 #[test]
 fn test_optimize_fixpoint() {
     let scan = make_scan("t", vec![("a", LogicalType::Int32), ("b", LogicalType::Int32)]);
@@ -173,10 +228,4 @@ fn test_optimize_fixpoint() {
     let rules = default_rules();
     let optimized = optimize(plan, &rules, 10).expect("fixpoint optimization should converge within 10 iterations without infinite loop");
     // Should reach a fixpoint without infinite loop
-}
-
-#[test]
-fn test_default_rules() {
-    let rules = default_rules();
-    assert!(!rules.is_empty(), "default_rules() must provide at least one optimization rule for the optimizer to be useful");
 }

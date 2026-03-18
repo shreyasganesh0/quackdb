@@ -1,4 +1,14 @@
-//! Lesson 20: SQL Lexer Tests
+//! # Lesson 20: SQL Lexer — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Keyword matching (`test_keyword_matching`)
+//! 2. Simple SELECT tokenization (`test_lex_select`)
+//! 3. Case insensitivity (`test_lex_case_insensitive`)
+//! 4. Literal types — integers, floats, strings (`test_lex_integer`, `test_lex_float`, `test_lex_string`)
+//! 5. Operators and punctuation (`test_lex_operators`, `test_lex_punctuation`)
+//! 6. Edge cases (unterminated string, empty input, dot notation)
+//! 7. Position tracking (`test_lex_position_tracking`)
+//! 8. Complex queries — JOIN, CREATE TABLE (`test_lex_complex_query`, `test_lex_join`, `test_lex_create_table`)
 
 use quackdb::sql::lexer::*;
 
@@ -22,6 +32,18 @@ fn extract_keywords(sql: &str) -> Vec<Keyword> {
         .collect()
 }
 
+// ── 1. Keyword matching ─────────────────────────────────────────────
+
+#[test]
+fn test_keyword_matching() {
+    assert_eq!(Lexer::match_keyword("SELECT"), Some(Keyword::Select));
+    assert_eq!(Lexer::match_keyword("select"), Some(Keyword::Select));
+    assert_eq!(Lexer::match_keyword("Select"), Some(Keyword::Select));
+    assert_eq!(Lexer::match_keyword("not_a_keyword"), None);
+}
+
+// ── 2. Simple SELECT ────────────────────────────────────────────────
+
 #[test]
 fn test_lex_select() {
     let mut lexer = Lexer::new("SELECT * FROM users");
@@ -33,6 +55,8 @@ fn test_lex_select() {
     assert_eq!(tokens[4].token, Token::Eof, "token stream must end with EOF to signal end of input");
 }
 
+// ── 3. Case insensitivity ───────────────────────────────────────────
+
 #[test]
 fn test_lex_case_insensitive() {
     let tokens = tokenize("select FROM Where");
@@ -40,6 +64,8 @@ fn test_lex_case_insensitive() {
     assert_eq!(tokens[1], Token::Keyword(Keyword::From));
     assert_eq!(tokens[2], Token::Keyword(Keyword::Where));
 }
+
+// ── 4. Literal types ────────────────────────────────────────────────
 
 #[test]
 fn test_lex_integer() {
@@ -68,6 +94,8 @@ fn test_lex_string() {
     // Escaped single quote
     assert_eq!(tokens[1].token, Token::StringLiteral("it's".to_string()), "SQL escapes single quotes by doubling them: '' becomes '");
 }
+
+// ── 5. Operators and punctuation ────────────────────────────────────
 
 #[test]
 fn test_lex_operators() {
@@ -99,6 +127,51 @@ fn test_lex_punctuation() {
     assert_eq!(tokens[5].token, Token::Semicolon);
 }
 
+// ── 6. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_lex_error_unterminated_string() {
+    let mut lexer = Lexer::new("'unterminated");
+    let result = lexer.tokenize();
+    assert!(result.is_err(), "unterminated string literal must be a lexer error, not silently accepted");
+}
+
+#[test]
+fn test_lex_dot_notation() {
+    let mut lexer = Lexer::new("users.name");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0].token, Token::Identifier("users".to_string()));
+    assert_eq!(tokens[1].token, Token::Dot);
+    assert_eq!(tokens[2].token, Token::Identifier("name".to_string()));
+}
+
+#[test]
+fn test_lex_empty_string_literal() {
+    // Edge case: empty string literal
+    let mut lexer = Lexer::new("''");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0].token, Token::StringLiteral("".to_string()), "empty string literal '' must tokenize to an empty string, not an error");
+}
+
+#[test]
+fn test_lex_integer_zero() {
+    // Edge case: the integer literal 0
+    let tokens = tokenize("0");
+    assert_eq!(tokens[0], Token::Integer(0), "integer literal 0 must be recognized");
+}
+
+// ── 7. Position tracking ────────────────────────────────────────────
+
+#[test]
+fn test_lex_position_tracking() {
+    let mut lexer = Lexer::new("SELECT\nFROM");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0].position.line, 1);
+    assert_eq!(tokens[1].position.line, 2, "lexer must track line numbers across newlines for error reporting");
+}
+
+// ── 8. Complex queries ──────────────────────────────────────────────
+
 #[test]
 fn test_lex_complex_query() {
     let sql = "SELECT id, name FROM users WHERE age > 18 ORDER BY name ASC LIMIT 10";
@@ -120,40 +193,8 @@ fn test_lex_join() {
 }
 
 #[test]
-fn test_lex_dot_notation() {
-    let mut lexer = Lexer::new("users.name");
-    let tokens = lexer.tokenize().unwrap();
-    assert_eq!(tokens[0].token, Token::Identifier("users".to_string()));
-    assert_eq!(tokens[1].token, Token::Dot);
-    assert_eq!(tokens[2].token, Token::Identifier("name".to_string()));
-}
-
-#[test]
-fn test_lex_error_unterminated_string() {
-    let mut lexer = Lexer::new("'unterminated");
-    let result = lexer.tokenize();
-    assert!(result.is_err(), "unterminated string literal must be a lexer error, not silently accepted");
-}
-
-#[test]
-fn test_lex_position_tracking() {
-    let mut lexer = Lexer::new("SELECT\nFROM");
-    let tokens = lexer.tokenize().unwrap();
-    assert_eq!(tokens[0].position.line, 1);
-    assert_eq!(tokens[1].position.line, 2, "lexer must track line numbers across newlines for error reporting");
-}
-
-#[test]
 fn test_lex_create_table() {
     let keywords = extract_keywords("CREATE TABLE users (id INTEGER, name VARCHAR)");
     assert!(keywords.contains(&Keyword::Create));
     assert!(keywords.contains(&Keyword::Table));
-}
-
-#[test]
-fn test_keyword_matching() {
-    assert_eq!(Lexer::match_keyword("SELECT"), Some(Keyword::Select));
-    assert_eq!(Lexer::match_keyword("select"), Some(Keyword::Select));
-    assert_eq!(Lexer::match_keyword("Select"), Some(Keyword::Select));
-    assert_eq!(Lexer::match_keyword("not_a_keyword"), None);
 }

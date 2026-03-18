@@ -1,4 +1,12 @@
-//! Lesson 30: Window Functions Tests
+//! # Lesson 30: Window Functions — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. ROW_NUMBER — basic ranking (`test_row_number`)
+//! 2. RANK — ties handling (`test_rank`)
+//! 3. DENSE_RANK — no gaps (`test_dense_rank`)
+//! 4. Running aggregates — SUM, COUNT (`test_running_sum`, `test_window_count`)
+//! 5. Edge cases (single row, LAG/LEAD)
+//! 6. Pipeline integration (`test_window_operator_pipeline`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::DataChunk;
@@ -16,6 +24,8 @@ fn make_window_data() -> DataChunk {
     chunk.append_row(&[ScalarValue::Varchar("sales".into()), ScalarValue::Int32(5), ScalarValue::Float64(95.0)]);
     chunk
 }
+
+// ── 1. ROW_NUMBER ───────────────────────────────────────────────────
 
 #[test]
 fn test_row_number() {
@@ -42,6 +52,8 @@ fn test_row_number() {
     }
 }
 
+// ── 2. RANK ─────────────────────────────────────────────────────────
+
 #[test]
 fn test_rank() {
     let mut chunk = DataChunk::new(&[LogicalType::Int32]);
@@ -58,6 +70,8 @@ fn test_rank() {
     assert_eq!(results.len(), 4, "RANK produces one value per row; ties get the same rank but the next rank skips ahead");
 }
 
+// ── 3. DENSE_RANK ───────────────────────────────────────────────────
+
 #[test]
 fn test_dense_rank() {
     let mut chunk = DataChunk::new(&[LogicalType::Int32]);
@@ -73,6 +87,8 @@ fn test_dense_rank() {
     // Dense rank: 1, 1, 2, 3
     assert_eq!(results.len(), 4, "DENSE_RANK never skips ranks after ties, unlike RANK which leaves gaps");
 }
+
+// ── 4. Running aggregates ───────────────────────────────────────────
 
 #[test]
 fn test_running_sum() {
@@ -91,6 +107,62 @@ fn test_running_sum() {
     // Running sum: 10, 30, 60
     assert_eq!(results.len(), 3, "UNBOUNDED PRECEDING to CURRENT ROW frame computes a running sum over the ordered partition");
 }
+
+#[test]
+fn test_window_count() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(1)]);
+    chunk.append_row(&[ScalarValue::Int32(2)]);
+    chunk.append_row(&[ScalarValue::Int32(3)]);
+
+    let func = create_window_function(WindowFunctionType::Count, Some(&LogicalType::Int32));
+    let order: Vec<usize> = (0..3).collect();
+    let frame = WindowFrame {
+        start: FrameBound::UnboundedPreceding,
+        end: FrameBound::CurrentRow,
+    };
+    let results = func.evaluate(&chunk, &order, &frame);
+    // Running count: 1, 2, 3
+    assert_eq!(results.len(), 3);
+}
+
+// ── 5. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_row_number_single_row() {
+    // Edge case: window function on a single-row input
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+
+    let func = create_window_function(WindowFunctionType::RowNumber, None);
+    let order: Vec<usize> = vec![0];
+    let frame = WindowFrame::default_frame();
+    let results = func.evaluate(&chunk, &order, &frame);
+    assert_eq!(results.len(), 1, "ROW_NUMBER on a single row should produce exactly one value");
+    if let ScalarValue::Int64(n) = &results[0] {
+        assert_eq!(*n, 1, "the only row should get row_number = 1");
+    }
+}
+
+#[test]
+fn test_lag_lead() {
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(1)]);
+    chunk.append_row(&[ScalarValue::Int32(2)]);
+    chunk.append_row(&[ScalarValue::Int32(3)]);
+
+    let lag = create_window_function(WindowFunctionType::Lag, Some(&LogicalType::Int32));
+    let lead = create_window_function(WindowFunctionType::Lead, Some(&LogicalType::Int32));
+    let order: Vec<usize> = (0..3).collect();
+    let frame = WindowFrame::default_frame();
+
+    let lag_results = lag.evaluate(&chunk, &order, &frame);
+    let lead_results = lead.evaluate(&chunk, &order, &frame);
+    assert_eq!(lag_results.len(), 3, "LAG should return one value per row, using NULL or a default for the first row");
+    assert_eq!(lead_results.len(), 3, "LEAD should return one value per row, using NULL or a default for the last row");
+}
+
+// ── 6. Pipeline integration ─────────────────────────────────────────
 
 #[test]
 fn test_window_operator_pipeline() {
@@ -116,40 +188,4 @@ fn test_window_operator_pipeline() {
     let results = PipelineExecutor::execute(pipeline).unwrap();
     let total: usize = results.iter().map(|c| c.count()).sum();
     assert_eq!(total, 5, "window operator in a pipeline should preserve all input rows while appending the computed window column");
-}
-
-#[test]
-fn test_lag_lead() {
-    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
-    chunk.append_row(&[ScalarValue::Int32(1)]);
-    chunk.append_row(&[ScalarValue::Int32(2)]);
-    chunk.append_row(&[ScalarValue::Int32(3)]);
-
-    let lag = create_window_function(WindowFunctionType::Lag, Some(&LogicalType::Int32));
-    let lead = create_window_function(WindowFunctionType::Lead, Some(&LogicalType::Int32));
-    let order: Vec<usize> = (0..3).collect();
-    let frame = WindowFrame::default_frame();
-
-    let lag_results = lag.evaluate(&chunk, &order, &frame);
-    let lead_results = lead.evaluate(&chunk, &order, &frame);
-    assert_eq!(lag_results.len(), 3, "LAG should return one value per row, using NULL or a default for the first row");
-    assert_eq!(lead_results.len(), 3, "LEAD should return one value per row, using NULL or a default for the last row");
-}
-
-#[test]
-fn test_window_count() {
-    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
-    chunk.append_row(&[ScalarValue::Int32(1)]);
-    chunk.append_row(&[ScalarValue::Int32(2)]);
-    chunk.append_row(&[ScalarValue::Int32(3)]);
-
-    let func = create_window_function(WindowFunctionType::Count, Some(&LogicalType::Int32));
-    let order: Vec<usize> = (0..3).collect();
-    let frame = WindowFrame {
-        start: FrameBound::UnboundedPreceding,
-        end: FrameBound::CurrentRow,
-    };
-    let results = func.evaluate(&chunk, &order, &frame);
-    // Running count: 1, 2, 3
-    assert_eq!(results.len(), 3);
 }

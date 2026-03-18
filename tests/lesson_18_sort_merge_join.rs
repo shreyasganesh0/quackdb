@@ -1,4 +1,13 @@
-//! Lesson 18: Sort-Merge Join Tests
+//! # Lesson 18: Sort-Merge Join — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Row comparator basics (`test_row_comparator`)
+//! 2. Comparator — descending and nulls (`test_row_comparator_descending`, `test_row_comparator_nulls_*`)
+//! 3. Key normalization (`test_key_normalizer`)
+//! 4. Edge cases (empty sides, single-row inputs)
+//! 5. Inner merge join (`test_merge_join_inner`)
+//! 6. Duplicate handling (`test_merge_join_duplicates`)
+//! 7. Left outer merge join (`test_merge_join_left_outer`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::DataChunk;
@@ -23,56 +32,7 @@ fn make_sorted_right() -> DataChunk {
     chunk
 }
 
-#[test]
-fn test_merge_join_inner() {
-    let left = make_sorted_left();
-    let right = make_sorted_right();
-
-    let left_keys = vec![SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast }];
-    let right_keys = vec![SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast }];
-
-    let mut join = MergeJoinOperator::new(
-        JoinType::Inner,
-        left_keys,
-        right_keys,
-        vec![LogicalType::Int32, LogicalType::Varchar],
-        vec![LogicalType::Int32, LogicalType::Int64],
-    );
-    join.add_left(left);
-    join.add_right(right);
-
-    let results = join.merge().unwrap();
-    let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 2, "sort-merge join finds matches by advancing two sorted cursors in lockstep");
-}
-
-#[test]
-fn test_merge_join_duplicates() {
-    let mut left = DataChunk::new(&[LogicalType::Int32]);
-    left.append_row(&[ScalarValue::Int32(1)]);
-    left.append_row(&[ScalarValue::Int32(1)]);
-    left.append_row(&[ScalarValue::Int32(2)]);
-
-    let mut right = DataChunk::new(&[LogicalType::Int32]);
-    right.append_row(&[ScalarValue::Int32(1)]);
-    right.append_row(&[ScalarValue::Int32(1)]);
-
-    let keys = vec![SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast }];
-
-    let mut join = MergeJoinOperator::new(
-        JoinType::Inner,
-        keys.clone(),
-        keys,
-        vec![LogicalType::Int32],
-        vec![LogicalType::Int32],
-    );
-    join.add_left(left);
-    join.add_right(right);
-
-    let results = join.merge().unwrap();
-    let total: usize = results.iter().map(|c| c.count()).sum();
-    assert_eq!(total, 4, "duplicate keys produce a cross product: 2 left * 2 right = 4 output rows for key=1");
-}
+// ── 1. Row comparator basics ────────────────────────────────────────
 
 #[test]
 fn test_row_comparator() {
@@ -90,6 +50,8 @@ fn test_row_comparator() {
     assert_eq!(cmp.compare_within(&chunk, 0, 2), Ordering::Less, "first key takes priority: 1 < 2 regardless of second key values");
     assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Less);    // (1,100) < (1,200)
 }
+
+// ── 2. Comparator — descending and nulls ────────────────────────────
 
 #[test]
 fn test_row_comparator_descending() {
@@ -130,6 +92,8 @@ fn test_row_comparator_nulls_last() {
     assert_eq!(cmp.compare_within(&chunk, 1, 0), Ordering::Greater, "NULLS LAST places NULL after all non-null values in sort order");
 }
 
+// ── 3. Key normalization ────────────────────────────────────────────
+
 #[test]
 fn test_key_normalizer() {
     let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
@@ -147,6 +111,78 @@ fn test_key_normalizer() {
     // k1 should be < k2 (row 0 has smaller first key)
     assert!(k1 < k2, "normalized keys enable byte-wise comparison that preserves sort order across types");
 }
+
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_row_comparator_equal_rows() {
+    // Edge case: comparing a row with itself should return Equal
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+
+    let cmp = RowComparator::new(vec![
+        SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast },
+    ]);
+
+    assert_eq!(cmp.compare_within(&chunk, 0, 0), Ordering::Equal, "comparing a row with itself must return Equal");
+}
+
+// ── 5. Inner merge join ─────────────────────────────────────────────
+
+#[test]
+fn test_merge_join_inner() {
+    let left = make_sorted_left();
+    let right = make_sorted_right();
+
+    let left_keys = vec![SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast }];
+    let right_keys = vec![SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast }];
+
+    let mut join = MergeJoinOperator::new(
+        JoinType::Inner,
+        left_keys,
+        right_keys,
+        vec![LogicalType::Int32, LogicalType::Varchar],
+        vec![LogicalType::Int32, LogicalType::Int64],
+    );
+    join.add_left(left);
+    join.add_right(right);
+
+    let results = join.merge().unwrap();
+    let total: usize = results.iter().map(|c| c.count()).sum();
+    assert_eq!(total, 2, "sort-merge join finds matches by advancing two sorted cursors in lockstep");
+}
+
+// ── 6. Duplicate handling ───────────────────────────────────────────
+
+#[test]
+fn test_merge_join_duplicates() {
+    let mut left = DataChunk::new(&[LogicalType::Int32]);
+    left.append_row(&[ScalarValue::Int32(1)]);
+    left.append_row(&[ScalarValue::Int32(1)]);
+    left.append_row(&[ScalarValue::Int32(2)]);
+
+    let mut right = DataChunk::new(&[LogicalType::Int32]);
+    right.append_row(&[ScalarValue::Int32(1)]);
+    right.append_row(&[ScalarValue::Int32(1)]);
+
+    let keys = vec![SortKey { column_index: 0, direction: SortDirection::Ascending, null_order: NullOrder::NullsLast }];
+
+    let mut join = MergeJoinOperator::new(
+        JoinType::Inner,
+        keys.clone(),
+        keys,
+        vec![LogicalType::Int32],
+        vec![LogicalType::Int32],
+    );
+    join.add_left(left);
+    join.add_right(right);
+
+    let results = join.merge().unwrap();
+    let total: usize = results.iter().map(|c| c.count()).sum();
+    assert_eq!(total, 4, "duplicate keys produce a cross product: 2 left * 2 right = 4 output rows for key=1");
+}
+
+// ── 7. Left outer merge join ────────────────────────────────────────
 
 #[test]
 fn test_merge_join_left_outer() {

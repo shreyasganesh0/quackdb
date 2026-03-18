@@ -1,4 +1,13 @@
-//! Lesson 29: Morsel-Driven Parallelism Tests
+//! # Lesson 29: Morsel-Driven Parallelism — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Morsel queue creation (`test_morsel_queue_creation`)
+//! 2. Morsel queue consumption (`test_morsel_queue_consumption`)
+//! 3. Parallel collector (`test_parallel_collector`)
+//! 4. Edge cases (empty queue, single-chunk queue)
+//! 5. Thread-safe queue consumption (`test_morsel_queue_thread_safe`)
+//! 6. Parallel scan+filter (`test_parallel_scan_filter`)
+//! 7. Deterministic results (`test_parallel_deterministic_results`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::DataChunk;
@@ -17,6 +26,8 @@ fn make_chunks(n: usize, rows_per_chunk: usize) -> Vec<DataChunk> {
     }).collect()
 }
 
+// ── 1. Morsel queue creation ────────────────────────────────────────
+
 #[test]
 fn test_morsel_queue_creation() {
     let chunks = make_chunks(4, 100);
@@ -24,6 +35,8 @@ fn test_morsel_queue_creation() {
     assert_eq!(queue.total(), 4, "morsel queue should track the total number of chunks enqueued");
     assert_eq!(queue.remaining(), 4);
 }
+
+// ── 2. Morsel queue consumption ─────────────────────────────────────
 
 #[test]
 fn test_morsel_queue_consumption() {
@@ -40,12 +53,51 @@ fn test_morsel_queue_consumption() {
     assert_eq!(queue.remaining(), 0);
 }
 
+// ── 3. Parallel collector ───────────────────────────────────────────
+
+#[test]
+fn test_parallel_collector() {
+    let collector = ParallelCollector::new();
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(42)]);
+    collector.push(chunk);
+
+    let results = collector.into_results();
+    assert_eq!(results.len(), 1, "ParallelCollector should gather chunks from all threads into one result set");
+}
+
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_morsel_queue_empty() {
+    // Edge case: queue with no chunks
+    let queue = MorselQueue::new(vec![]);
+    assert_eq!(queue.total(), 0, "empty queue must report total 0");
+    assert_eq!(queue.remaining(), 0);
+    assert!(queue.take().is_none(), "taking from an empty queue must return None immediately");
+}
+
+#[test]
+fn test_morsel_queue_single_chunk() {
+    // Edge case: queue with exactly one chunk
+    let chunks = make_chunks(1, 5);
+    let queue = MorselQueue::new(chunks);
+    assert_eq!(queue.total(), 1);
+
+    let m = queue.take().unwrap();
+    assert_eq!(m.chunk.count(), 5);
+    assert!(queue.take().is_none(), "single-chunk queue should be exhausted after one take");
+}
+
+// ── 5. Thread-safe queue consumption ────────────────────────────────
+
 #[test]
 fn test_morsel_queue_thread_safe() {
     let chunks = make_chunks(100, 10);
     let queue = Arc::new(MorselQueue::new(chunks));
     let collector = Arc::new(ParallelCollector::new());
 
+    // Spawn 4 worker threads that compete for morsels
     let mut handles = Vec::new();
     for _ in 0..4 {
         let q = Arc::clone(&queue);
@@ -66,16 +118,7 @@ fn test_morsel_queue_thread_safe() {
     assert_eq!(total_rows, 1000, "morsel-driven parallelism must process every row exactly once across all worker threads");
 }
 
-#[test]
-fn test_parallel_collector() {
-    let collector = ParallelCollector::new();
-    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
-    chunk.append_row(&[ScalarValue::Int32(42)]);
-    collector.push(chunk);
-
-    let results = collector.into_results();
-    assert_eq!(results.len(), 1, "ParallelCollector should gather chunks from all threads into one result set");
-}
+// ── 6. Parallel scan+filter ─────────────────────────────────────────
 
 #[test]
 fn test_parallel_scan_filter() {
@@ -117,6 +160,8 @@ fn test_parallel_scan_filter() {
     // Values 0..1000, those > 50 = 949
     assert_eq!(total_rows, 949, "parallel filter should produce the same result as sequential -- values 51..999 = 949 rows");
 }
+
+// ── 7. Deterministic results ────────────────────────────────────────
 
 #[test]
 fn test_parallel_deterministic_results() {

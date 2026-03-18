@@ -1,4 +1,13 @@
-//! Lesson 32: Distributed Query Planning Tests
+//! # Lesson 32: Distributed Query Planning — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Fragment builder (`test_fragment_builder`)
+//! 2. Single scan plan (`test_single_scan_plan`)
+//! 3. Filter pushdown in distributed plan (`test_filter_pushdown_in_distributed`)
+//! 4. Edge cases (broadcast exchange, single table)
+//! 5. Join repartition (`test_join_repartition`)
+//! 6. Aggregate repartition (`test_aggregate_repartition`)
+//! 7. Multi-join fragments (`test_multi_join_fragments`)
 
 use quackdb::types::LogicalType;
 use quackdb::planner::logical_plan::*;
@@ -12,14 +21,71 @@ fn make_scan(name: &str) -> LogicalPlan {
     }
 }
 
+// ── 1. Fragment builder ─────────────────────────────────────────────
+
+#[test]
+fn test_fragment_builder() {
+    let mut builder = FragmentBuilder::new();
+    let id = builder.add_fragment(make_scan("t"), None, Some(ExchangeType::Gather));
+    assert_eq!(id, 0);
+    let fragments = builder.build();
+    assert_eq!(fragments.len(), 1);
+    assert_eq!(fragments[0].fragment_id, 0, "fragment IDs should be assigned sequentially starting from 0");
+}
+
+// ── 2. Single scan plan ─────────────────────────────────────────────
+
 #[test]
 fn test_single_scan_plan() {
     let planner = DistributedPlanner::new(4);
     let plan = make_scan("users");
     let fragments = planner.plan(plan).unwrap();
     assert!(!fragments.is_empty(), "even a single scan must produce at least one fragment to be scheduled on a worker node");
-    // Single scan needs a gather exchange at the end
 }
+
+// ── 3. Filter pushdown ──────────────────────────────────────────────
+
+#[test]
+fn test_filter_pushdown_in_distributed() {
+    let planner = DistributedPlanner::new(4);
+    let plan = LogicalPlan::Filter {
+        predicate: LogicalExpr::BinaryOp {
+            op: quackdb::sql::ast::BinaryOpAst::Equal,
+            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "id".to_string() }),
+            right: Box::new(LogicalExpr::Literal(quackdb::types::ScalarValue::Int32(1))),
+        },
+        input: Box::new(make_scan("t")),
+    };
+
+    let fragments = planner.plan(plan).unwrap();
+    // Filter should be pushed to scan fragments
+    assert!(!fragments.is_empty());
+}
+
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_broadcast_exchange() {
+    let planner = DistributedPlanner::new(4);
+    // A join where one side is very small could use broadcast
+    let fragments = planner.plan(make_scan("small_table")).unwrap();
+    // At minimum, should have fragments
+    assert!(!fragments.is_empty());
+}
+
+#[test]
+fn test_fragment_builder_multiple() {
+    // Edge case: building multiple fragments sequentially
+    let mut builder = FragmentBuilder::new();
+    let id1 = builder.add_fragment(make_scan("a"), None, Some(ExchangeType::Gather));
+    let id2 = builder.add_fragment(make_scan("b"), None, Some(ExchangeType::Gather));
+    assert_eq!(id1, 0);
+    assert_eq!(id2, 1, "fragment IDs must be assigned sequentially");
+    let fragments = builder.build();
+    assert_eq!(fragments.len(), 2);
+}
+
+// ── 5. Join repartition ─────────────────────────────────────────────
 
 #[test]
 fn test_join_repartition() {
@@ -44,6 +110,8 @@ fn test_join_repartition() {
     assert!(has_repartition || fragments.len() > 1, "distributed join requires repartition exchanges so both sides are co-partitioned on the join key");
 }
 
+// ── 6. Aggregate repartition ────────────────────────────────────────
+
 #[test]
 fn test_aggregate_repartition() {
     let planner = DistributedPlanner::new(4);
@@ -61,41 +129,7 @@ fn test_aggregate_repartition() {
     assert!(!fragments.is_empty(), "distributed aggregation needs partial-agg fragments on workers and a final-agg fragment on the coordinator");
 }
 
-#[test]
-fn test_filter_pushdown_in_distributed() {
-    let planner = DistributedPlanner::new(4);
-    let plan = LogicalPlan::Filter {
-        predicate: LogicalExpr::BinaryOp {
-            op: quackdb::sql::ast::BinaryOpAst::Equal,
-            left: Box::new(LogicalExpr::ColumnRef { index: 0, name: "id".to_string() }),
-            right: Box::new(LogicalExpr::Literal(quackdb::types::ScalarValue::Int32(1))),
-        },
-        input: Box::new(make_scan("t")),
-    };
-
-    let fragments = planner.plan(plan).unwrap();
-    // Filter should be pushed to scan fragments
-    assert!(!fragments.is_empty());
-}
-
-#[test]
-fn test_broadcast_exchange() {
-    let planner = DistributedPlanner::new(4);
-    // A join where one side is very small could use broadcast
-    let fragments = planner.plan(make_scan("small_table")).unwrap();
-    // At minimum, should have fragments
-    assert!(!fragments.is_empty());
-}
-
-#[test]
-fn test_fragment_builder() {
-    let mut builder = FragmentBuilder::new();
-    let id = builder.add_fragment(make_scan("t"), None, Some(ExchangeType::Gather));
-    assert_eq!(id, 0);
-    let fragments = builder.build();
-    assert_eq!(fragments.len(), 1);
-    assert_eq!(fragments[0].fragment_id, 0, "fragment IDs should be assigned sequentially starting from 0");
-}
+// ── 7. Multi-join fragments ─────────────────────────────────────────
 
 #[test]
 fn test_multi_join_fragments() {

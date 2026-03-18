@@ -1,4 +1,15 @@
-//! Lesson 27: MVCC Tests
+//! # Lesson 27: MVCC — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Transaction manager basics (`test_transaction_manager`)
+//! 2. Versioned row visibility (`test_versioned_row_visibility`)
+//! 3. Begin and commit (`test_begin_commit`)
+//! 4. Read-your-own-writes (`test_read_own_writes`)
+//! 5. Edge cases (abort, empty table scan)
+//! 6. Snapshot isolation (`test_snapshot_isolation`)
+//! 7. Delete operations (`test_delete`, `test_delete_not_visible_before_commit`)
+//! 8. Concurrent inserts (`test_concurrent_insert`)
+//! 9. Garbage collection (`test_garbage_collection`)
 
 use quackdb::types::ScalarValue;
 use quackdb::transaction::mvcc::*;
@@ -19,6 +30,44 @@ fn table_with_committed_row(value: i32) -> (MvccTable, u64) {
     (table, row_id)
 }
 
+// ── 1. Transaction manager basics ───────────────────────────────────
+
+#[test]
+fn test_transaction_manager() {
+    let mut tm = TransactionManager::new();
+    let t1 = tm.begin();
+    let t2 = tm.begin();
+
+    assert_eq!(tm.status(t1), Some(TxnStatus::Active));
+    assert_eq!(tm.status(t2), Some(TxnStatus::Active));
+
+    tm.commit(t1).unwrap();
+    assert_eq!(tm.status(t1), Some(TxnStatus::Committed));
+
+    tm.abort(t2).unwrap();
+    assert_eq!(tm.status(t2), Some(TxnStatus::Aborted));
+}
+
+// ── 2. Versioned row visibility ─────────────────────────────────────
+
+#[test]
+fn test_versioned_row_visibility() {
+    let row = VersionedRow {
+        data: vec![ScalarValue::Int32(1)],
+        created_by: 1,
+        deleted_by: None,
+        prev_version: None,
+    };
+
+    // Visible to txn 2 if txn 1 is not in active set
+    assert!(row.is_visible(2, &[]));
+
+    // Not visible if created_by is still active
+    assert!(!row.is_visible(2, &[1]), "rows created by an active (uncommitted) transaction must be invisible to other transactions");
+}
+
+// ── 3. Begin and commit ─────────────────────────────────────────────
+
 #[test]
 fn test_begin_commit() {
     let (mut table, _row_id) = table_with_committed_row(1);
@@ -28,6 +77,41 @@ fn test_begin_commit() {
     assert_eq!(rows.len(), 1, "committed insert should be visible to subsequent transactions");
     assert_eq!(rows[0][0], ScalarValue::Int32(1));
 }
+
+// ── 4. Read-your-own-writes ─────────────────────────────────────────
+
+#[test]
+fn test_read_own_writes() {
+    let (mut table, txn, _row_id) = setup_table_with_row(42);
+
+    // Should see own uncommitted write
+    let rows = table.scan(txn);
+    assert_eq!(rows.len(), 1, "a transaction must always see its own uncommitted writes (read-your-own-writes guarantee)");
+    assert_eq!(rows[0][0], ScalarValue::Int32(42));
+}
+
+// ── 5. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_abort_not_visible() {
+    let (mut table, txn1, _row_id) = setup_table_with_row(1);
+    table.abort(txn1).unwrap();
+
+    let txn2 = table.begin_transaction();
+    let rows = table.scan(txn2);
+    assert_eq!(rows.len(), 0, "aborted transactions must leave no visible side effects -- this is the atomicity guarantee");
+}
+
+#[test]
+fn test_scan_empty_table() {
+    // Edge case: scanning an empty table
+    let mut table = MvccTable::new();
+    let txn = table.begin_transaction();
+    let rows = table.scan(txn);
+    assert_eq!(rows.len(), 0, "scanning an empty table must return zero rows");
+}
+
+// ── 6. Snapshot isolation ───────────────────────────────────────────
 
 #[test]
 fn test_snapshot_isolation() {
@@ -52,25 +136,7 @@ fn test_snapshot_isolation() {
     assert_eq!(rows[0][0], ScalarValue::Int32(1));
 }
 
-#[test]
-fn test_abort_not_visible() {
-    let (mut table, txn1, _row_id) = setup_table_with_row(1);
-    table.abort(txn1).unwrap();
-
-    let txn2 = table.begin_transaction();
-    let rows = table.scan(txn2);
-    assert_eq!(rows.len(), 0, "aborted transactions must leave no visible side effects -- this is the atomicity guarantee");
-}
-
-#[test]
-fn test_read_own_writes() {
-    let (mut table, txn, _row_id) = setup_table_with_row(42);
-
-    // Should see own uncommitted write
-    let rows = table.scan(txn);
-    assert_eq!(rows.len(), 1, "a transaction must always see its own uncommitted writes (read-your-own-writes guarantee)");
-    assert_eq!(rows[0][0], ScalarValue::Int32(42));
-}
+// ── 7. Delete operations ────────────────────────────────────────────
 
 #[test]
 fn test_delete() {
@@ -107,6 +173,8 @@ fn test_delete_not_visible_before_commit() {
     assert_eq!(rows.len(), 1, "txn3's snapshot was taken before the delete committed, so it must still see the row");
 }
 
+// ── 8. Concurrent inserts ───────────────────────────────────────────
+
 #[test]
 fn test_concurrent_insert() {
     let mut table = MvccTable::new();
@@ -124,6 +192,8 @@ fn test_concurrent_insert() {
     let rows = table.scan(txn3);
     assert_eq!(rows.len(), 2, "concurrent inserts to different rows should both be visible after both transactions commit");
 }
+
+// ── 9. Garbage collection ───────────────────────────────────────────
 
 #[test]
 fn test_garbage_collection() {
@@ -144,36 +214,4 @@ fn test_garbage_collection() {
 
     let cleaned = table.garbage_collect();
     assert!(cleaned > 0, "Should have cleaned up some old versions");
-}
-
-#[test]
-fn test_transaction_manager() {
-    let mut tm = TransactionManager::new();
-    let t1 = tm.begin();
-    let t2 = tm.begin();
-
-    assert_eq!(tm.status(t1), Some(TxnStatus::Active));
-    assert_eq!(tm.status(t2), Some(TxnStatus::Active));
-
-    tm.commit(t1).unwrap();
-    assert_eq!(tm.status(t1), Some(TxnStatus::Committed));
-
-    tm.abort(t2).unwrap();
-    assert_eq!(tm.status(t2), Some(TxnStatus::Aborted));
-}
-
-#[test]
-fn test_versioned_row_visibility() {
-    let row = VersionedRow {
-        data: vec![ScalarValue::Int32(1)],
-        created_by: 1,
-        deleted_by: None,
-        prev_version: None,
-    };
-
-    // Visible to txn 2 if txn 1 is not in active set
-    assert!(row.is_visible(2, &[]));
-
-    // Not visible if created_by is still active
-    assert!(!row.is_visible(2, &[1]), "rows created by an active (uncommitted) transaction must be invisible to other transactions");
 }

@@ -1,9 +1,28 @@
-//! Lesson 11: Columnar File Writer Tests
+//! # Lesson 11: Columnar File Writer — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Magic bytes and format identification (`test_magic_bytes`)
+//! 2. Single-column write (`test_columnar_write_single_column`)
+//! 3. Multi-column write (`test_columnar_write_multi_column`)
+//! 4. Edge cases (empty file, stats with nulls)
+//! 5. Column stats (`test_column_stats_update`, `test_column_stats_merge`)
+//! 6. Multiple row groups (`test_columnar_write_multiple_row_groups`)
+//! 7. DataChunk-based write (`test_columnar_write_chunk`)
+//! 8. Footer serialization (`test_footer_serialize_roundtrip`)
 
 use quackdb::storage::columnar_file::*;
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::chunk::DataChunk;
 use std::io::Cursor;
+
+// ── 1. Magic bytes ──────────────────────────────────────────────────
+
+#[test]
+fn test_magic_bytes() {
+    assert_eq!(MAGIC, b"QUAK", "magic bytes uniquely identify the file format and prevent misinterpretation");
+}
+
+// ── 2. Single-column write ──────────────────────────────────────────
 
 #[test]
 fn test_columnar_write_single_column() {
@@ -19,6 +38,8 @@ fn test_columnar_write_single_column() {
     // Check magic bytes at start
     assert_eq!(&buf[..4], MAGIC, "file must start with magic bytes for format identification");
 }
+
+// ── 3. Multi-column write ───────────────────────────────────────────
 
 #[test]
 fn test_columnar_write_multi_column() {
@@ -38,18 +59,16 @@ fn test_columnar_write_multi_column() {
     assert!(!buf.is_empty(), "multi-column write must produce output containing header, data, and footer");
 }
 
-#[test]
-fn test_columnar_write_multiple_row_groups() {
-    let schema = vec![("x".to_string(), LogicalType::Int64)];
-    let mut buf = Vec::new();
-    let mut writer = ColumnarFileWriter::new(Cursor::new(&mut buf), schema).unwrap();
+// ── 4. Edge cases ───────────────────────────────────────────────────
 
-    for _ in 0..3 {
-        writer.begin_row_group().unwrap();
-        writer.write_column(0, &[42, 0, 0, 0, 0, 0, 0, 0], 1, ColumnStats::new()).unwrap();
-        writer.end_row_group(1).unwrap();
-    }
+#[test]
+fn test_columnar_write_empty_file() {
+    // Edge case: writer with schema but no row groups written
+    let schema = vec![("x".to_string(), LogicalType::Int32)];
+    let mut buf = Vec::new();
+    let writer = ColumnarFileWriter::new(Cursor::new(&mut buf), schema).unwrap();
     writer.finish().unwrap();
+    assert!(!buf.is_empty(), "even an empty file must contain magic bytes and a footer");
 }
 
 #[test]
@@ -69,23 +88,7 @@ fn test_columnar_write_with_stats() {
     writer.finish().unwrap();
 }
 
-#[test]
-fn test_columnar_write_chunk() {
-    let schema = vec![
-        ("a".to_string(), LogicalType::Int32),
-        ("b".to_string(), LogicalType::Int64),
-    ];
-    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
-    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(100)]);
-    chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Int64(200)]);
-
-    let mut buf = Vec::new();
-    let mut writer = ColumnarFileWriter::new(Cursor::new(&mut buf), schema).unwrap();
-    writer.write_chunk(&chunk).unwrap();
-    writer.finish().unwrap();
-
-    assert!(&buf[..4] == MAGIC, "DataChunk-based write must also produce a valid file header");
-}
+// ── 5. Column stats ────────────────────────────────────────────────
 
 #[test]
 fn test_column_stats_update() {
@@ -115,6 +118,54 @@ fn test_column_stats_merge() {
 }
 
 #[test]
+fn test_column_stats_all_nulls() {
+    // Edge case: all values are null — stats should track the null count correctly
+    let mut stats = ColumnStats::new();
+    for _ in 0..5 {
+        stats.update(&[], true);
+    }
+    assert_eq!(stats.null_count, 5, "stats must count all nulls when every value is null");
+}
+
+// ── 6. Multiple row groups ──────────────────────────────────────────
+
+#[test]
+fn test_columnar_write_multiple_row_groups() {
+    let schema = vec![("x".to_string(), LogicalType::Int64)];
+    let mut buf = Vec::new();
+    let mut writer = ColumnarFileWriter::new(Cursor::new(&mut buf), schema).unwrap();
+
+    for _ in 0..3 {
+        writer.begin_row_group().unwrap();
+        writer.write_column(0, &[42, 0, 0, 0, 0, 0, 0, 0], 1, ColumnStats::new()).unwrap();
+        writer.end_row_group(1).unwrap();
+    }
+    writer.finish().unwrap();
+}
+
+// ── 7. DataChunk-based write ────────────────────────────────────────
+
+#[test]
+fn test_columnar_write_chunk() {
+    let schema = vec![
+        ("a".to_string(), LogicalType::Int32),
+        ("b".to_string(), LogicalType::Int64),
+    ];
+    let mut chunk = DataChunk::new(&[LogicalType::Int32, LogicalType::Int64]);
+    chunk.append_row(&[ScalarValue::Int32(1), ScalarValue::Int64(100)]);
+    chunk.append_row(&[ScalarValue::Int32(2), ScalarValue::Int64(200)]);
+
+    let mut buf = Vec::new();
+    let mut writer = ColumnarFileWriter::new(Cursor::new(&mut buf), schema).unwrap();
+    writer.write_chunk(&chunk).unwrap();
+    writer.finish().unwrap();
+
+    assert!(&buf[..4] == MAGIC, "DataChunk-based write must also produce a valid file header");
+}
+
+// ── 8. Footer serialization ────────────────────────────────────────
+
+#[test]
 fn test_footer_serialize_roundtrip() {
     let footer = FileFooter {
         schema: vec![
@@ -141,9 +192,4 @@ fn test_footer_serialize_roundtrip() {
     assert_eq!(restored.schema.len(), 2, "footer must preserve the full schema for readers");
     assert_eq!(restored.total_rows, 100, "total_rows in footer enables row-count queries without scanning");
     assert_eq!(restored.row_groups.len(), 1, "row group metadata must survive footer serialization");
-}
-
-#[test]
-fn test_magic_bytes() {
-    assert_eq!(MAGIC, b"QUAK", "magic bytes uniquely identify the file format and prevent misinterpretation");
 }

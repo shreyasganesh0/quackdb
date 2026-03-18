@@ -1,4 +1,14 @@
-//! Lesson 03: Columnar Vectors Tests
+//! # Lesson 03: Columnar Vectors — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Basic validity mask construction (`test_validity_mask_all_valid`, `test_validity_mask_all_invalid`)
+//! 2. Validity mask manipulation (`test_validity_mask_set`, `test_validity_mask_range`, `test_validity_mask_resize`)
+//! 3. Flat vector construction and access (`test_vector_flat_int32`, `test_vector_float64`)
+//! 4. Null handling (`test_vector_nulls`, `test_vector_constant_null`)
+//! 5. Constant and special vector types (`test_vector_constant`, `test_vector_flatten`)
+//! 6. Selection vectors and copy (`test_selection_vector`, `test_vector_copy_with_selection`)
+//! 7. String vectors and edge cases (`test_vector_string`, `test_vector_string_empty`)
+//! 8. Low-level typed slice access (`test_vector_get_typed_slice`)
 
 use quackdb::types::{LogicalType, ScalarValue};
 use quackdb::vector::{ValidityMask, Vector, VectorType, SelectionVector};
@@ -22,6 +32,8 @@ fn assert_int32_values(vec: &Vector, expected: &[i32]) {
     }
 }
 
+// ── 1. Basic validity mask construction ─────────────────────────────
+
 #[test]
 fn test_validity_mask_all_valid() {
     let mask = ValidityMask::new_all_valid(100);
@@ -41,6 +53,8 @@ fn test_validity_mask_all_invalid() {
         assert!(!mask.is_valid(i));
     }
 }
+
+// ── 2. Validity mask manipulation ───────────────────────────────────
 
 #[test]
 fn test_validity_mask_set() {
@@ -84,12 +98,38 @@ fn test_validity_mask_resize() {
 }
 
 #[test]
+fn test_validity_mask_single_element() {
+    // Edge case: single-element validity mask
+    let mask = ValidityMask::new_all_valid(1);
+    assert!(mask.all_valid(), "single-element all-valid mask should report all_valid()");
+    assert_eq!(mask.count_valid(), 1);
+    assert!(mask.is_valid(0));
+}
+
+// ── 3. Flat vector construction and access ──────────────────────────
+
+#[test]
 fn test_vector_flat_int32() {
     let expected: Vec<i32> = (0..10).map(|i| i * 10).collect();
     let vec = make_int32_vector(&expected);
     assert_int32_values(&vec, &expected);
     assert_eq!(vec.vector_type(), VectorType::Flat, "default vector storage should be flat (uncompressed)");
 }
+
+#[test]
+fn test_vector_float64() {
+    let mut vec = Vector::new(LogicalType::Float64, 3);
+    vec.set_count(3);
+    vec.set_value(0, ScalarValue::Float64(1.5));
+    vec.set_value(1, ScalarValue::Float64(2.5));
+    vec.set_value(2, ScalarValue::Float64(3.5));
+
+    assert_eq!(vec.get_value(0), ScalarValue::Float64(1.5));
+    assert_eq!(vec.get_value(1), ScalarValue::Float64(2.5));
+    assert_eq!(vec.get_value(2), ScalarValue::Float64(3.5));
+}
+
+// ── 4. Null handling ────────────────────────────────────────────────
 
 #[test]
 fn test_vector_nulls() {
@@ -113,6 +153,31 @@ fn test_vector_nulls() {
 }
 
 #[test]
+fn test_vector_all_nulls() {
+    // Edge case: a vector where every element is null
+    let mut vec = Vector::new(LogicalType::Int32, 3);
+    vec.set_count(3);
+    vec.set_null(0);
+    vec.set_null(1);
+    vec.set_null(2);
+
+    assert!(!vec.validity().is_valid(0), "all elements should be null");
+    assert!(!vec.validity().is_valid(1));
+    assert!(!vec.validity().is_valid(2));
+}
+
+#[test]
+fn test_vector_constant_null() {
+    let vec = Vector::new_constant(ScalarValue::Null(LogicalType::Int32), 50);
+    assert_eq!(vec.vector_type(), VectorType::Constant);
+    for _i in 0..50 {
+        assert!(!vec.validity().is_valid(0));
+    }
+}
+
+// ── 5. Constant and special vector types ────────────────────────────
+
+#[test]
 fn test_vector_constant() {
     let vec = Vector::new_constant(ScalarValue::Int32(42), 100);
     assert_eq!(vec.vector_type(), VectorType::Constant, "constant vectors store one value for all rows");
@@ -120,15 +185,6 @@ fn test_vector_constant() {
     assert_eq!(vec.get_value(0), ScalarValue::Int32(42));
     assert_eq!(vec.get_value(50), ScalarValue::Int32(42), "constant vector must return the same value at any index");
     assert_eq!(vec.get_value(99), ScalarValue::Int32(42));
-}
-
-#[test]
-fn test_vector_constant_null() {
-    let vec = Vector::new_constant(ScalarValue::Null(LogicalType::Int32), 50);
-    assert_eq!(vec.vector_type(), VectorType::Constant);
-    for i in 0..50 {
-        assert!(!vec.validity().is_valid(0));
-    }
 }
 
 #[test]
@@ -141,6 +197,8 @@ fn test_vector_flatten() {
         assert_eq!(vec.get_value(i), ScalarValue::Int32(7), "flatten must materialize the constant value into every slot");
     }
 }
+
+// ── 6. Selection vectors and copy ───────────────────────────────────
 
 #[test]
 fn test_selection_vector() {
@@ -161,6 +219,13 @@ fn test_selection_vector_incrementing() {
 }
 
 #[test]
+fn test_selection_vector_empty() {
+    // Edge case: empty selection vector
+    let sel = SelectionVector::new(vec![]);
+    assert_eq!(sel.len(), 0, "empty selection vector must have length 0");
+}
+
+#[test]
 fn test_vector_copy_with_selection() {
     let values: Vec<i32> = (0..10).map(|i| i * 100).collect();
     let src = make_int32_vector(&values);
@@ -171,6 +236,8 @@ fn test_vector_copy_with_selection() {
 
     assert_int32_values(&dst, &[100, 300, 700]);
 }
+
+// ── 7. String vectors and edge cases ────────────────────────────────
 
 #[test]
 fn test_vector_string() {
@@ -194,6 +261,8 @@ fn test_vector_string_empty() {
     assert_eq!(vec.get_string(1), Some("notempty"));
 }
 
+// ── 8. Low-level typed slice access ─────────────────────────────────
+
 #[test]
 fn test_vector_get_typed_slice() {
     let mut vec = Vector::new(LogicalType::Int32, 4);
@@ -210,14 +279,8 @@ fn test_vector_get_typed_slice() {
 }
 
 #[test]
-fn test_vector_float64() {
-    let mut vec = Vector::new(LogicalType::Float64, 3);
-    vec.set_count(3);
-    vec.set_value(0, ScalarValue::Float64(1.5));
-    vec.set_value(1, ScalarValue::Float64(2.5));
-    vec.set_value(2, ScalarValue::Float64(3.5));
-
-    assert_eq!(vec.get_value(0), ScalarValue::Float64(1.5));
-    assert_eq!(vec.get_value(1), ScalarValue::Float64(2.5));
-    assert_eq!(vec.get_value(2), ScalarValue::Float64(3.5));
+fn test_vector_empty() {
+    // Edge case: zero-length vector
+    let vec = Vector::new(LogicalType::Int32, 0);
+    assert_eq!(vec.count(), 0, "zero-capacity vector must report count 0");
 }

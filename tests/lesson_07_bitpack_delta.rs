@@ -1,4 +1,15 @@
-//! Lesson 07: Bitpacking & Delta Encoding Tests
+//! # Lesson 07: Bitpacking & Delta Encoding — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Basic bit width calculation (`test_bits_required`)
+//! 2. Simple bitpack roundtrips (`test_bitpack_roundtrip_1bit`, `test_bitpack_roundtrip_4bits`)
+//! 3. Edge cases (empty input, single element)
+//! 4. All bit widths (`test_bitpack_roundtrip_various_widths`)
+//! 5. Delta encoding basics (`test_delta_encode_sequential`, `test_delta_single`)
+//! 6. Delta roundtrips with varied data (`test_delta_roundtrip`, `test_delta_negative`)
+//! 7. Frame-of-reference encoding (`test_frame_of_reference`)
+//! 8. Combined delta+bitpack (`test_delta_bitpack_combined`)
+//! 9. Compression metrics (`test_bitpack_compression`, `test_bitpack_compression_ratio`)
 
 use quackdb::compression::bitpack;
 use quackdb::compression::delta;
@@ -17,6 +28,8 @@ fn assert_delta_roundtrip(data: &[i64]) {
     assert_eq!(decoded, data, "delta encode/decode roundtrip must be lossless");
 }
 
+// ── 1. Basic bit width calculation ──────────────────────────────────
+
 #[test]
 fn test_bits_required() {
     assert_eq!(bitpack::bits_required(0), 0, "zero needs no bits to represent");
@@ -27,6 +40,8 @@ fn test_bits_required() {
     assert_eq!(bitpack::bits_required(256), 9, "256 overflows 8 bits, needs 9");
     assert_eq!(bitpack::bits_required(u32::MAX as u64), 32);
 }
+
+// ── 2. Simple bitpack roundtrips ────────────────────────────────────
 
 #[test]
 fn test_bitpack_roundtrip_1bit() {
@@ -40,6 +55,35 @@ fn test_bitpack_roundtrip_4bits() {
     assert_bitpack_roundtrip(&values, 4);
 }
 
+// ── 3. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_delta_empty() {
+    let data: Vec<i64> = vec![];
+    let encoded = delta::encode(&data);
+    let decoded = delta::decode(&encoded);
+    assert!(decoded.is_empty(), "delta encoding of empty input must round-trip to empty");
+}
+
+#[test]
+fn test_delta_single() {
+    let data = vec![42i64];
+    let encoded = delta::encode(&data);
+    assert_eq!(encoded.base, 42, "single element is stored only as the base value");
+    assert!(encoded.deltas.is_empty(), "no deltas needed for a single-element sequence");
+    let decoded = delta::decode(&encoded);
+    assert_eq!(decoded, data);
+}
+
+#[test]
+fn test_bitpack_single_value() {
+    // Edge case: packing a single value
+    let values: Vec<u32> = vec![7];
+    assert_bitpack_roundtrip(&values, 3);
+}
+
+// ── 4. All bit widths ───────────────────────────────────────────────
+
 #[test]
 fn test_bitpack_roundtrip_various_widths() {
     for bit_width in 1..=32 {
@@ -50,6 +94,77 @@ fn test_bitpack_roundtrip_various_widths() {
         assert_eq!(unpacked, values, "Failed for bit_width={}", bit_width);
     }
 }
+
+// ── 5. Delta encoding basics ────────────────────────────────────────
+
+#[test]
+fn test_delta_encode_sequential() {
+    let data: Vec<i64> = (100..110).collect();
+    let encoded = delta::encode(&data);
+    assert_eq!(encoded.base, 100, "base stores the first value of the sequence");
+    // All deltas should be 1
+    for d in &encoded.deltas {
+        assert_eq!(*d, 1, "sequential integers have a constant delta of 1");
+    }
+}
+
+// ── 6. Delta roundtrips ─────────────────────────────────────────────
+
+#[test]
+fn test_delta_roundtrip() {
+    let data: Vec<i64> = vec![100, 105, 103, 110, 108];
+    assert_delta_roundtrip(&data);
+}
+
+#[test]
+fn test_delta_negative() {
+    let data: Vec<i64> = vec![100, 90, 80, 70, 60];
+    assert_delta_roundtrip(&data);
+}
+
+#[test]
+fn test_delta_constant_values() {
+    // Edge case: all values the same — deltas should all be zero
+    let data: Vec<i64> = vec![42; 10];
+    let encoded = delta::encode(&data);
+    assert_eq!(encoded.base, 42);
+    for d in &encoded.deltas {
+        assert_eq!(*d, 0, "constant input should produce all-zero deltas");
+    }
+    assert_delta_roundtrip(&data);
+}
+
+// ── 7. Frame-of-reference encoding ──────────────────────────────────
+
+#[test]
+fn test_frame_of_reference() {
+    let data: Vec<i64> = vec![1000, 1001, 1005, 1003, 1002];
+    let (min_val, offsets) = delta::frame_of_reference_encode(&data);
+    assert_eq!(min_val, 1000, "frame-of-reference stores the minimum as the reference point");
+    assert_eq!(offsets, vec![0, 1, 5, 3, 2], "offsets are the difference from the minimum value");
+
+    let decoded = delta::frame_of_reference_decode(min_val, &offsets);
+    assert_eq!(decoded, data);
+}
+
+// ── 8. Combined delta+bitpack ───────────────────────────────────────
+
+#[test]
+fn test_delta_bitpack_combined() {
+    // Timestamps with constant 1-second intervals
+    let data: Vec<i64> = (0..1000).map(|i| 1_700_000_000 + i).collect();
+    let encoded = delta::delta_bitpack_encode(&data);
+    let decoded = delta::delta_bitpack_decode(&encoded, data.len());
+    assert_eq!(decoded, data);
+
+    // Check compression ratio — timestamps should compress very well
+    let original_size = data.len() * 8; // 8 bytes per i64
+    let compressed_size = encoded.len();
+    let ratio = original_size as f64 / compressed_size as f64;
+    assert!(ratio > 8.0, "Expected >8x compression for sequential timestamps, got {}x", ratio);
+}
+
+// ── 9. Compression metrics ──────────────────────────────────────────
 
 #[test]
 fn test_bitpack_compression() {
@@ -73,71 +188,4 @@ fn test_bitpack_u64() {
 fn test_bitpack_compression_ratio() {
     let ratio = bitpack::compression_ratio(32, 4);
     assert!((ratio - 8.0).abs() < 0.01, "32/4 = 8x compression");
-}
-
-#[test]
-fn test_delta_encode_sequential() {
-    let data: Vec<i64> = (100..110).collect();
-    let encoded = delta::encode(&data);
-    assert_eq!(encoded.base, 100, "base stores the first value of the sequence");
-    // All deltas should be 1
-    for d in &encoded.deltas {
-        assert_eq!(*d, 1, "sequential integers have a constant delta of 1");
-    }
-}
-
-#[test]
-fn test_delta_roundtrip() {
-    let data: Vec<i64> = vec![100, 105, 103, 110, 108];
-    assert_delta_roundtrip(&data);
-}
-
-#[test]
-fn test_delta_negative() {
-    let data: Vec<i64> = vec![100, 90, 80, 70, 60];
-    assert_delta_roundtrip(&data);
-}
-
-#[test]
-fn test_delta_single() {
-    let data = vec![42i64];
-    let encoded = delta::encode(&data);
-    assert_eq!(encoded.base, 42, "single element is stored only as the base value");
-    assert!(encoded.deltas.is_empty(), "no deltas needed for a single-element sequence");
-    let decoded = delta::decode(&encoded);
-    assert_eq!(decoded, data);
-}
-
-#[test]
-fn test_frame_of_reference() {
-    let data: Vec<i64> = vec![1000, 1001, 1005, 1003, 1002];
-    let (min_val, offsets) = delta::frame_of_reference_encode(&data);
-    assert_eq!(min_val, 1000, "frame-of-reference stores the minimum as the reference point");
-    assert_eq!(offsets, vec![0, 1, 5, 3, 2], "offsets are the difference from the minimum value");
-
-    let decoded = delta::frame_of_reference_decode(min_val, &offsets);
-    assert_eq!(decoded, data);
-}
-
-#[test]
-fn test_delta_bitpack_combined() {
-    // Timestamps with constant 1-second intervals
-    let data: Vec<i64> = (0..1000).map(|i| 1_700_000_000 + i).collect();
-    let encoded = delta::delta_bitpack_encode(&data);
-    let decoded = delta::delta_bitpack_decode(&encoded, data.len());
-    assert_eq!(decoded, data);
-
-    // Check compression ratio — timestamps should compress very well
-    let original_size = data.len() * 8; // 8 bytes per i64
-    let compressed_size = encoded.len();
-    let ratio = original_size as f64 / compressed_size as f64;
-    assert!(ratio > 8.0, "Expected >8x compression for sequential timestamps, got {}x", ratio);
-}
-
-#[test]
-fn test_delta_empty() {
-    let data: Vec<i64> = vec![];
-    let encoded = delta::encode(&data);
-    let decoded = delta::decode(&encoded);
-    assert!(decoded.is_empty(), "delta encoding of empty input must round-trip to empty");
 }

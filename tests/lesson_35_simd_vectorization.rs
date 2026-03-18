@@ -1,4 +1,15 @@
-//! Lesson 35: SIMD-Style Vectorization Tests
+//! # Lesson 35: SIMD-Style Vectorization — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Vectorized add — basic (`test_vectorized_add_i32`, `test_vectorized_add_f64`)
+//! 2. Edge cases (empty input, single element)
+//! 3. Vectorized filter (`test_vectorized_filter_gt_i32`, `test_vectorized_filter_gt_f64`)
+//! 4. Vectorized hash (`test_vectorized_hash_i64`)
+//! 5. Branchless min/max (`test_branchless_min_i32`, `test_branchless_max_i32`)
+//! 6. Nullable arithmetic (`test_vectorized_add_nullable`)
+//! 7. Vectorized aggregation — sum (`test_vectorized_sum_i32`, `test_vectorized_sum_f64`, `test_vectorized_sum_empty`)
+//! 8. Memory alignment (`test_aligned_alloc`)
+//! 9. Large batch processing (`test_vectorized_large_batch`)
 
 use quackdb::simd::*;
 
@@ -18,6 +29,8 @@ fn assert_vectorized_add(a: &[i32], b: &[i32], expected: &[i32]) {
     assert_eq!(out, expected, "vectorized add produced incorrect results");
 }
 
+// ── 1. Vectorized add — basic ───────────────────────────────────────
+
 #[test]
 fn test_vectorized_add_i32() {
     assert_vectorized_add(
@@ -36,6 +49,34 @@ fn test_vectorized_add_f64() {
     assert_eq!(out, vec![1.5, 2.5, 3.5]);
 }
 
+// ── 2. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_vectorized_empty() {
+    assert_vectorized_add(&[], &[], &[]);
+}
+
+#[test]
+fn test_vectorized_sum_empty() {
+    let sum = vectorized_sum_i32(&[]);
+    assert_eq!(sum, 0, "vectorized sum of an empty slice should return 0 as the identity element for addition");
+}
+
+#[test]
+fn test_vectorized_add_single_element() {
+    // Edge case: single-element vectorized addition
+    assert_vectorized_add(&[42], &[8], &[50]);
+}
+
+#[test]
+fn test_vectorized_sum_single_element() {
+    // Edge case: sum of a single element
+    let sum = vectorized_sum_i32(&[42]);
+    assert_eq!(sum, 42, "vectorized sum of a single element must return that element");
+}
+
+// ── 3. Vectorized filter ────────────────────────────────────────────
+
 #[test]
 fn test_vectorized_filter_gt_i32() {
     let values = vec![1, 5, 3, 8, 2, 9, 4];
@@ -53,8 +94,19 @@ fn test_vectorized_filter_gt_f64() {
     let values = vec![1.0, 5.0, 3.0, 8.0];
     let mut indices = vec![0u32; values.len()];
     let count = vectorized_filter_gt_f64(&values, 4.0, &mut indices);
-    assert_eq!(count, 2); // 5.0, 8.0
+    assert_eq!(count, 2, "vectorized filter should select exactly the 2 values > 4.0: {5.0, 8.0}");
 }
+
+#[test]
+fn test_vectorized_filter_none_match() {
+    // Edge case: filter where no values match
+    let values = vec![1, 2, 3];
+    let mut indices = vec![0u32; values.len()];
+    let count = vectorized_filter_gt_i32(&values, 100, &mut indices);
+    assert_eq!(count, 0, "filter with no matches must return count 0");
+}
+
+// ── 4. Vectorized hash ──────────────────────────────────────────────
 
 #[test]
 fn test_vectorized_hash_i64() {
@@ -65,10 +117,13 @@ fn test_vectorized_hash_i64() {
     assert_ne!(out[0], out[1], "distinct input values should produce distinct hashes to minimize hash collisions");
     assert_ne!(out[1], out[2]);
 
+    // Verify determinism
     let mut out2 = vec![0u64; 5];
     vectorized_hash_i64(&values, &mut out2);
     assert_eq!(out, out2, "vectorized hash must be deterministic -- same inputs must always produce the same hashes");
 }
+
+// ── 5. Branchless min/max ───────────────────────────────────────────
 
 #[test]
 fn test_branchless_min_i32() {
@@ -88,6 +143,8 @@ fn test_branchless_max_i32() {
     assert_eq!(out, vec![3, 7, 4, 8, 5]);
 }
 
+// ── 6. Nullable arithmetic ──────────────────────────────────────────
+
 #[test]
 fn test_vectorized_add_nullable() {
     let a = vec![10, 20, 30, 40];
@@ -103,6 +160,8 @@ fn test_vectorized_add_nullable() {
     assert_eq!(out[3], 44);
 }
 
+// ── 7. Vectorized aggregation — sum ─────────────────────────────────
+
 #[test]
 fn test_vectorized_sum_i32() {
     let values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -117,6 +176,8 @@ fn test_vectorized_sum_f64() {
     assert!((sum - 15.0).abs() < 1e-10);
 }
 
+// ── 8. Memory alignment ────────────────────────────────────────────
+
 #[test]
 fn test_aligned_alloc() {
     let buf = aligned_alloc(256, 64);
@@ -124,6 +185,8 @@ fn test_aligned_alloc() {
     let ptr = buf.as_ptr() as usize;
     assert_eq!(ptr % 64, 0, "Expected 64-byte alignment, got ptr={:#x}", ptr);
 }
+
+// ── 9. Large batch processing ───────────────────────────────────────
 
 #[test]
 fn test_vectorized_large_batch() {
@@ -133,15 +196,4 @@ fn test_vectorized_large_batch() {
     for i in 0..out.len() {
         assert_eq!(out[i], a[i] + b[i]);
     }
-}
-
-#[test]
-fn test_vectorized_empty() {
-    assert_vectorized_add(&[], &[], &[]);
-}
-
-#[test]
-fn test_vectorized_sum_empty() {
-    let sum = vectorized_sum_i32(&[]);
-    assert_eq!(sum, 0, "vectorized sum of an empty slice should return 0 as the identity element for addition");
 }

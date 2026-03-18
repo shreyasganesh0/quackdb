@@ -1,11 +1,20 @@
-//! Lesson 22: Logical Query Plan Tests
+//! # Lesson 22: Logical Query Plan — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Schema basics (`test_schema`, `test_schema_merge`)
+//! 2. Scan plan (`test_scan_plan_schema`, `test_scan_with_projection`)
+//! 3. Filter plan (`test_filter_plan_schema`)
+//! 4. Edge cases (empty schema, display formatting)
+//! 5. Join plan (`test_join_plan_schema`)
+//! 6. Aggregate plan (`test_aggregate_plan_schema`)
+//! 7. Limit plan (`test_limit_plan_schema`)
+//! 8. Pretty printing (`test_pretty_print`, `test_display`)
 
 use quackdb::types::LogicalType;
 use quackdb::planner::logical_plan::*;
 use quackdb::sql::ast::*;
 
 /// Helper: build a Scan plan node for the given table name and column definitions.
-/// Many logical plan tests start with a scan, so this eliminates the verbose struct literal.
 fn make_scan(table: &str, columns: &[(&str, LogicalType)]) -> LogicalPlan {
     let schema = Schema::new(
         columns.iter().map(|(n, t)| (n.to_string(), t.clone())).collect(),
@@ -23,6 +32,8 @@ fn make_schema(columns: &[(&str, LogicalType)]) -> Schema {
         columns.iter().map(|(n, t)| (n.to_string(), t.clone())).collect(),
     )
 }
+
+// ── 1. Schema basics ────────────────────────────────────────────────
 
 #[test]
 fn test_schema() {
@@ -46,6 +57,16 @@ fn test_schema_merge() {
     assert_eq!(merged.columns[0].0, "a");
     assert_eq!(merged.columns[1].0, "b");
 }
+
+#[test]
+fn test_schema_empty() {
+    // Edge case: schema with no columns (used for global aggregation)
+    let schema = Schema::new(vec![]);
+    assert_eq!(schema.column_count(), 0, "empty schema must report zero columns");
+    assert_eq!(schema.find_column("anything"), None);
+}
+
+// ── 2. Scan plan ────────────────────────────────────────────────────
 
 #[test]
 fn test_scan_plan_schema() {
@@ -78,6 +99,8 @@ fn test_scan_with_projection() {
     assert_eq!(output.column_count(), 2, "projection pushdown in scan reduces columns read from storage");
 }
 
+// ── 3. Filter plan ──────────────────────────────────────────────────
+
 #[test]
 fn test_filter_plan_schema() {
     let inner = make_scan("t", &[("x", LogicalType::Int32)]);
@@ -88,6 +111,18 @@ fn test_filter_plan_schema() {
     let output = plan.schema();
     assert_eq!(output.column_count(), 1, "filter does not change the schema; it only removes rows, not columns");
 }
+
+// ── 4. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_scan_single_column() {
+    // Edge case: scan with a single-column schema
+    let plan = make_scan("t", &[("x", LogicalType::Int32)]);
+    let output = plan.schema();
+    assert_eq!(output.column_count(), 1, "single-column scan must work correctly");
+}
+
+// ── 5. Join plan ────────────────────────────────────────────────────
 
 #[test]
 fn test_join_plan_schema() {
@@ -103,33 +138,7 @@ fn test_join_plan_schema() {
     assert_eq!(output.column_count(), 2, "join schema is the concatenation of left and right schemas");
 }
 
-#[test]
-fn test_limit_plan_schema() {
-    let inner = make_scan("t", &[("a", LogicalType::Int32)]);
-    let plan = LogicalPlan::Limit {
-        count: 10,
-        offset: 0,
-        input: Box::new(inner),
-    };
-    let output = plan.schema();
-    assert_eq!(output.column_count(), 1);
-}
-
-#[test]
-fn test_pretty_print() {
-    let plan = LogicalPlan::Filter {
-        predicate: LogicalExpr::Literal(quackdb::types::ScalarValue::Boolean(true)),
-        input: Box::new(LogicalPlan::Scan {
-            table_name: "users".to_string(),
-            schema: Schema::new(vec![("id".to_string(), LogicalType::Int32)]),
-            projection: None,
-        }),
-    };
-    let output = plan.pretty_print();
-    assert!(!output.is_empty());
-    assert!(output.contains("Filter") || output.contains("filter"), "pretty print should show operator names for debugging query plans");
-    assert!(output.contains("Scan") || output.contains("scan") || output.contains("users"));
-}
+// ── 6. Aggregate plan ──────────────────────────────────────────────
 
 #[test]
 fn test_aggregate_plan_schema() {
@@ -152,6 +161,38 @@ fn test_aggregate_plan_schema() {
     };
     let output = plan.schema();
     assert_eq!(output.column_count(), 2);
+}
+
+// ── 7. Limit plan ──────────────────────────────────────────────────
+
+#[test]
+fn test_limit_plan_schema() {
+    let inner = make_scan("t", &[("a", LogicalType::Int32)]);
+    let plan = LogicalPlan::Limit {
+        count: 10,
+        offset: 0,
+        input: Box::new(inner),
+    };
+    let output = plan.schema();
+    assert_eq!(output.column_count(), 1);
+}
+
+// ── 8. Pretty printing ─────────────────────────────────────────────
+
+#[test]
+fn test_pretty_print() {
+    let plan = LogicalPlan::Filter {
+        predicate: LogicalExpr::Literal(quackdb::types::ScalarValue::Boolean(true)),
+        input: Box::new(LogicalPlan::Scan {
+            table_name: "users".to_string(),
+            schema: Schema::new(vec![("id".to_string(), LogicalType::Int32)]),
+            projection: None,
+        }),
+    };
+    let output = plan.pretty_print();
+    assert!(!output.is_empty());
+    assert!(output.contains("Filter") || output.contains("filter"), "pretty print should show operator names for debugging query plans");
+    assert!(output.contains("Scan") || output.contains("scan") || output.contains("users"));
 }
 
 #[test]

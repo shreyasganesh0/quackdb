@@ -1,4 +1,13 @@
-//! Lesson 05: Run-Length Encoding Tests
+//! # Lesson 05: Run-Length Encoding — Test Suite
+//!
+//! Tests are ordered from simple to complex:
+//! 1. Basic encoding of constant data (`test_rle_all_same`)
+//! 2. Edge cases (empty input, single element)
+//! 3. Core algorithm correctness (`test_rle_sorted`, `test_rle_alternating`)
+//! 4. Random access into encoded data (`test_rle_random_access`)
+//! 5. Generic type support (`test_rle_roundtrip_strings`)
+//! 6. Compression metrics (`test_rle_compression_ratio`)
+//! 7. Byte-level RLE (`test_rle_bytes`, `test_rle_bytes_mixed`)
 
 use quackdb::compression::rle;
 
@@ -22,6 +31,8 @@ fn assert_rle_roundtrip<T: Clone + PartialEq + std::fmt::Debug>(data: &[T]) {
     assert_eq!(decoded, data, "RLE roundtrip must be lossless");
 }
 
+// ── 1. Basic encoding of constant data ──────────────────────────────
+
 #[test]
 fn test_rle_all_same() {
     let data = vec![42i32; 1000];
@@ -35,31 +46,7 @@ fn test_rle_all_same() {
     assert_eq!(decoded, data);
 }
 
-#[test]
-fn test_rle_alternating() {
-    let data: Vec<i32> = (0..100).map(|i| i % 2).collect();
-    let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 100, "alternating values produce no consecutive duplicates, so every element is its own run");
-    let decoded = rle::decode(&encoded);
-    assert_eq!(decoded, data, "RLE must be lossless even in the worst case");
-}
-
-#[test]
-fn test_rle_sorted() {
-    let data = make_repeated_groups(10, 50);
-    let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 10, "sorted data groups into one run per distinct value");
-    assert_rle_roundtrip(&data);
-}
-
-#[test]
-fn test_rle_single_element() {
-    let data = vec![99i32];
-    let encoded = rle::encode(&data);
-    assert_eq!(encoded.runs.len(), 1);
-    let decoded = rle::decode(&encoded);
-    assert_eq!(decoded, data);
-}
+// ── 2. Edge cases ───────────────────────────────────────────────────
 
 #[test]
 fn test_rle_empty() {
@@ -70,6 +57,46 @@ fn test_rle_empty() {
     let decoded = rle::decode(&encoded);
     assert!(decoded.is_empty());
 }
+
+#[test]
+fn test_rle_single_element() {
+    let data = vec![99i32];
+    let encoded = rle::encode(&data);
+    assert_eq!(encoded.runs.len(), 1, "single element should produce exactly one run");
+    assert_eq!(encoded.runs[0].count, 1, "single-element run must have count 1");
+    let decoded = rle::decode(&encoded);
+    assert_eq!(decoded, data);
+}
+
+#[test]
+fn test_rle_two_distinct_elements() {
+    // Edge case: two elements that differ — the minimum input to produce two runs
+    let data = vec![1i32, 2];
+    let encoded = rle::encode(&data);
+    assert_eq!(encoded.runs.len(), 2, "two distinct adjacent values must produce two runs");
+    assert_rle_roundtrip(&data);
+}
+
+// ── 3. Core algorithm correctness ───────────────────────────────────
+
+#[test]
+fn test_rle_sorted() {
+    let data = make_repeated_groups(10, 50);
+    let encoded = rle::encode(&data);
+    assert_eq!(encoded.runs.len(), 10, "sorted data groups into one run per distinct value");
+    assert_rle_roundtrip(&data);
+}
+
+#[test]
+fn test_rle_alternating() {
+    let data: Vec<i32> = (0..100).map(|i| i % 2).collect();
+    let encoded = rle::encode(&data);
+    assert_eq!(encoded.runs.len(), 100, "alternating values produce no consecutive duplicates, so every element is its own run");
+    let decoded = rle::decode(&encoded);
+    assert_eq!(decoded, data, "RLE must be lossless even in the worst case");
+}
+
+// ── 4. Random access ────────────────────────────────────────────────
 
 #[test]
 fn test_rle_random_access() {
@@ -84,6 +111,8 @@ fn test_rle_random_access() {
     assert_eq!(rle::get_at_index(&encoded, 499), 4, "last valid index should map to the final run");
 }
 
+// ── 5. Generic type support ─────────────────────────────────────────
+
 #[test]
 fn test_rle_roundtrip_strings() {
     let data = vec!["hello", "hello", "hello", "world", "world", "foo"];
@@ -92,6 +121,8 @@ fn test_rle_roundtrip_strings() {
     assert_rle_roundtrip(&data);
 }
 
+// ── 6. Compression metrics ──────────────────────────────────────────
+
 #[test]
 fn test_rle_compression_ratio() {
     let data = vec![1i32; 10000];
@@ -99,6 +130,8 @@ fn test_rle_compression_ratio() {
     let ratio = rle::compression_ratio(data.len(), &encoded);
     assert!(ratio > 10.0, "Expected compression ratio > 10x, got {}", ratio);
 }
+
+// ── 7. Byte-level RLE ───────────────────────────────────────────────
 
 #[test]
 fn test_rle_bytes() {
@@ -115,4 +148,13 @@ fn test_rle_bytes_mixed() {
     let encoded = rle::encode_bytes(&data);
     let decoded = rle::decode_bytes(&encoded);
     assert_eq!(decoded, data);
+}
+
+#[test]
+fn test_rle_bytes_empty() {
+    // Edge case: empty byte input
+    let data: Vec<u8> = vec![];
+    let encoded = rle::encode_bytes(&data);
+    let decoded = rle::decode_bytes(&encoded);
+    assert!(decoded.is_empty(), "empty byte-level RLE must round-trip to empty");
 }
