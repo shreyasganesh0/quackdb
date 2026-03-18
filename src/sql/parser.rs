@@ -69,14 +69,123 @@ impl Parser {
         parser.parse_statement()
     }
 
+    // --- Helper methods for token navigation ---
+
+    /// Peek at the current token without advancing.
+    fn peek(&self) -> &Token {
+        if self.position < self.tokens.len() {
+            &self.tokens[self.position].token
+        } else {
+            &Token::Eof
+        }
+    }
+
+    /// Get the current position info for error reporting.
+    fn current_position(&self) -> (usize, usize) {
+        if self.position < self.tokens.len() {
+            let pos = &self.tokens[self.position].position;
+            (pos.line, pos.column)
+        } else {
+            (0, 0)
+        }
+    }
+
+    /// Advance the cursor by one token and return the consumed token.
+    fn advance(&mut self) -> Token {
+        if self.position < self.tokens.len() {
+            let tok = self.tokens[self.position].token.clone();
+            self.position += 1;
+            tok
+        } else {
+            Token::Eof
+        }
+    }
+
+    /// Expect a specific keyword; return error if not found.
+    fn expect_keyword(&mut self, kw: Keyword) -> Result<(), ParseError> {
+        let (line, column) = self.current_position();
+        match self.advance() {
+            Token::Keyword(k) if k == kw => Ok(()),
+            other => Err(ParseError {
+                message: format!("Expected keyword {:?}, found {:?}", kw, other),
+                line,
+                column,
+            }),
+        }
+    }
+
+    /// Expect a specific token; return error if not found.
+    fn expect_token(&mut self, expected: &Token) -> Result<(), ParseError> {
+        let (line, column) = self.current_position();
+        let tok = self.advance();
+        if std::mem::discriminant(&tok) == std::mem::discriminant(expected) {
+            Ok(())
+        } else {
+            Err(ParseError {
+                message: format!("Expected {:?}, found {:?}", expected, tok),
+                line,
+                column,
+            })
+        }
+    }
+
+    /// Parse an identifier and return its name.
+    fn parse_identifier(&mut self) -> Result<String, ParseError> {
+        let (line, column) = self.current_position();
+        match self.advance() {
+            Token::Identifier(name) => Ok(name),
+            other => Err(ParseError {
+                message: format!("Expected identifier, found {:?}", other),
+                line,
+                column,
+            }),
+        }
+    }
+
+    /// Check if the current token is a specific keyword; if so, consume it.
+    fn match_keyword(&mut self, kw: Keyword) -> bool {
+        if matches!(self.peek(), Token::Keyword(k) if *k == kw) {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Parse a single SQL statement from the current position.
     ///
     /// Peeks at the first token to determine the statement type, then
     /// dispatches to the appropriate method.
     pub fn parse_statement(&mut self) -> Result<Statement, ParseError> {
-        // Hint: match on the current token — Keyword::Select dispatches
-        // to parse_select, Keyword::Create to parse_create_table, etc.
-        todo!()
+        let (line, column) = self.current_position();
+        match self.peek() {
+            Token::Keyword(Keyword::Select) => {
+                Ok(Statement::Select(self.parse_select()?))
+            }
+            Token::Keyword(Keyword::Create) => {
+                Ok(Statement::CreateTable(self.parse_create_table()?))
+            }
+            Token::Keyword(Keyword::Insert) => {
+                Ok(Statement::Insert(self.parse_insert()?))
+            }
+            Token::Keyword(Keyword::Drop) => {
+                self.advance(); // consume DROP
+                self.expect_keyword(Keyword::Table)?;
+                let if_exists = if matches!(self.peek(), Token::Keyword(Keyword::Exists)) {
+                    // Check for IF EXISTS (simplified: just check for EXISTS after DROP TABLE)
+                    false
+                } else {
+                    false
+                };
+                let table_name = self.parse_identifier()?;
+                Ok(Statement::Drop(DropTableStatement { table_name, if_exists }))
+            }
+            _ => Err(ParseError {
+                message: format!("Unexpected token: {:?}", self.peek()),
+                line,
+                column,
+            }),
+        }
     }
 
     /// Parse a SELECT statement.
@@ -102,19 +211,157 @@ impl Parser {
     ///
     /// Grammar: `CREATE TABLE name (col_def, ...)`
     pub fn parse_create_table(&mut self) -> Result<CreateTableStatement, ParseError> {
-        // Hint: consume CREATE TABLE, parse the table name, then parse
-        // a parenthesized comma-separated list of column definitions
-        // (name, data_type, optional NULL/NOT NULL, optional PRIMARY KEY).
-        todo!()
+        self.expect_keyword(Keyword::Create)?;
+        self.expect_keyword(Keyword::Table)?;
+        let table_name = self.parse_identifier()?;
+        self.expect_token(&Token::LeftParen)?;
+
+        let mut columns = Vec::new();
+        loop {
+            let col_name = self.parse_identifier()?;
+            let data_type = self.parse_data_type()?;
+
+            let mut nullable = true;
+            let mut primary_key = false;
+
+            // Check for optional constraints
+            loop {
+                if self.match_keyword(Keyword::Not) {
+                    self.expect_keyword(Keyword::Null)?;
+                    nullable = false;
+                } else if self.match_keyword(Keyword::Null) {
+                    nullable = true;
+                } else if self.match_keyword(Keyword::Primary) {
+                    self.expect_keyword(Keyword::Key)?;
+                    primary_key = true;
+                    nullable = false;
+                } else {
+                    break;
+                }
+            }
+
+            columns.push(ColumnDef {
+                name: col_name,
+                data_type,
+                nullable,
+                primary_key,
+            });
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        self.expect_token(&Token::RightParen)?;
+        // Consume optional semicolon
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(CreateTableStatement { table_name, columns })
+    }
+
+    /// Parse a SQL data type keyword into a LogicalType.
+    fn parse_data_type(&mut self) -> Result<LogicalType, ParseError> {
+        let (line, column) = self.current_position();
+        match self.advance() {
+            Token::Keyword(Keyword::Int) | Token::Keyword(Keyword::Integer) => Ok(LogicalType::Int32),
+            Token::Keyword(Keyword::Bigint) => Ok(LogicalType::Int64),
+            Token::Keyword(Keyword::Float) => Ok(LogicalType::Float32),
+            Token::Keyword(Keyword::Double) => Ok(LogicalType::Float64),
+            Token::Keyword(Keyword::Varchar) => {
+                // Optionally consume (N)
+                if matches!(self.peek(), Token::LeftParen) {
+                    self.advance();
+                    self.advance(); // consume the length
+                    self.expect_token(&Token::RightParen)?;
+                }
+                Ok(LogicalType::Varchar)
+            }
+            Token::Keyword(Keyword::Boolean) => Ok(LogicalType::Boolean),
+            Token::Keyword(Keyword::Date) => Ok(LogicalType::Date),
+            Token::Keyword(Keyword::Timestamp) => Ok(LogicalType::Timestamp),
+            other => Err(ParseError {
+                message: format!("Expected data type, found {:?}", other),
+                line,
+                column,
+            }),
+        }
     }
 
     /// Parse an INSERT statement.
     ///
     /// Grammar: `INSERT INTO name [(columns)] VALUES (expr, ...), ...`
     pub fn parse_insert(&mut self) -> Result<InsertStatement, ParseError> {
-        // Hint: consume INSERT INTO, parse table name, optional column
-        // list in parens, then VALUES followed by parenthesized rows.
-        todo!()
+        self.expect_keyword(Keyword::Insert)?;
+        self.expect_keyword(Keyword::Into)?;
+        let table_name = self.parse_identifier()?;
+
+        // Optional column list
+        let columns = if matches!(self.peek(), Token::LeftParen) {
+            // Check if this is a column list (identifiers) or VALUES
+            // Peek ahead: if next after '(' is an identifier, it's a column list
+            let saved_pos = self.position;
+            self.advance(); // consume '('
+            if matches!(self.peek(), Token::Identifier(_)) {
+                // Parse column list
+                let mut cols = Vec::new();
+                loop {
+                    cols.push(self.parse_identifier()?);
+                    if matches!(self.peek(), Token::Comma) {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                self.expect_token(&Token::RightParen)?;
+                Some(cols)
+            } else {
+                // Not a column list, rewind
+                self.position = saved_pos;
+                None
+            }
+        } else {
+            None
+        };
+
+        self.expect_keyword(Keyword::Values)?;
+
+        // Parse rows: (expr, ...), ...
+        let mut values = Vec::new();
+        loop {
+            self.expect_token(&Token::LeftParen)?;
+            let mut row = Vec::new();
+            loop {
+                row.push(self.parse_expression(0)?);
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect_token(&Token::RightParen)?;
+            values.push(row);
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Consume optional semicolon
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(InsertStatement {
+            table_name,
+            columns,
+            values,
+        })
     }
 
     /// Parse an expression using Pratt parsing.

@@ -219,7 +219,47 @@ impl Vector {
     ///
     /// Only stores the value once; `vector_type` is set to `Constant`.
     pub fn new_constant(value: ScalarValue, count: usize) -> Self {
-        todo!()
+        let logical_type = value.logical_type();
+        // Store only a single value's worth of data
+        let (data, offsets) = match &value {
+            ScalarValue::Null(_) => (vec![], None),
+            ScalarValue::Boolean(v) => (vec![*v as u8], None),
+            ScalarValue::Int8(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Int16(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Int32(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Int64(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::UInt8(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::UInt16(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::UInt32(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::UInt64(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Float32(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Float64(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Varchar(s) => {
+                let bytes = s.as_bytes().to_vec();
+                let len = bytes.len() as u32;
+                (bytes, Some(vec![0u32, len]))
+            }
+            ScalarValue::Date(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Timestamp(v) => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Decimal { value: v, .. } => (v.to_le_bytes().to_vec(), None),
+            ScalarValue::Blob(v) => {
+                let len = v.len() as u32;
+                (v.clone(), Some(vec![0u32, len]))
+            }
+        };
+        let validity = if value.is_null() {
+            ValidityMask::new_all_invalid(count)
+        } else {
+            ValidityMask::new_all_valid(count)
+        };
+        Self {
+            logical_type,
+            vector_type: VectorType::Constant,
+            data,
+            validity,
+            count,
+            offsets,
+        }
     }
 
     /// Get the logical type of this vector.
@@ -287,7 +327,56 @@ impl Vector {
     ///
     /// After this call, `vector_type` becomes `Flat`.
     pub fn flatten(&mut self) {
-        todo!()
+        if self.vector_type != VectorType::Constant {
+            return;
+        }
+        let count = self.count;
+        if count == 0 {
+            self.vector_type = VectorType::Flat;
+            return;
+        }
+
+        // Check if the constant is null
+        let is_null = !self.validity.is_valid(0);
+
+        if is_null {
+            // All values are null - create empty data buffer of the right size
+            let data_size = match self.logical_type.byte_width() {
+                Some(width) => width * count,
+                None => 0,
+            };
+            self.data = vec![0u8; data_size];
+            self.validity = ValidityMask::new_all_invalid(count);
+            self.offsets = if self.logical_type.byte_width().is_none() {
+                Some(vec![0u32; count + 1])
+            } else {
+                None
+            };
+        } else if self.logical_type.byte_width().is_some() {
+            // Fixed-width type: replicate the single value's bytes
+            let width = self.logical_type.byte_width().unwrap();
+            let single_value = self.data[..width].to_vec();
+            let mut new_data = Vec::with_capacity(width * count);
+            for _ in 0..count {
+                new_data.extend_from_slice(&single_value);
+            }
+            self.data = new_data;
+        } else {
+            // Variable-length type: replicate the string/blob data
+            let single_data = self.data.clone();
+            let single_len = single_data.len() as u32;
+            let mut new_data = Vec::with_capacity(single_data.len() * count);
+            let mut new_offsets = Vec::with_capacity(count + 1);
+            new_offsets.push(0u32);
+            for _ in 0..count {
+                new_data.extend_from_slice(&single_data);
+                new_offsets.push(*new_offsets.last().unwrap() + single_len);
+            }
+            self.data = new_data;
+            self.offsets = Some(new_offsets);
+        }
+
+        self.vector_type = VectorType::Flat;
     }
 
     /// Copy values from this vector according to a selection vector into `target`.

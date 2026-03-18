@@ -31,13 +31,28 @@ pub struct DeltaEncoded {
 /// difference from its predecessor.
 // Hint: `deltas[i] = data[i+1] - data[i]`.
 pub fn encode(data: &[i64]) -> DeltaEncoded {
-    todo!()
+    if data.is_empty() {
+        return DeltaEncoded {
+            base: 0,
+            deltas: Vec::new(),
+        };
+    }
+    let base = data[0];
+    let deltas = data.windows(2).map(|w| w[1] - w[0]).collect();
+    DeltaEncoded { base, deltas }
 }
 
 /// Decode delta-encoded data back to `i64` values.
 // Hint: start with `base`, then cumulatively add each delta.
 pub fn decode(encoded: &DeltaEncoded) -> Vec<i64> {
-    todo!()
+    let mut result = Vec::with_capacity(encoded.deltas.len() + 1);
+    let mut current = encoded.base;
+    result.push(current);
+    for &delta in &encoded.deltas {
+        current += delta;
+        result.push(current);
+    }
+    result
 }
 
 /// Frame-of-reference encoding: store values as unsigned offsets from the minimum.

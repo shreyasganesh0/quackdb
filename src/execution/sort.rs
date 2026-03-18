@@ -43,16 +43,53 @@ impl<T> MinHeap<T> {
 
     /// Push a value onto the heap, maintaining the heap invariant.
     pub fn push(&mut self, value: T) {
-        // Hint: append to data, then sift-up from the last position.
-        // Sift-up: while the new element is less than its parent, swap them.
-        todo!()
+        self.data.push(value);
+        // Sift up: move the new element toward the root while it's smaller than its parent
+        let mut idx = self.data.len() - 1;
+        while idx > 0 {
+            let parent = (idx - 1) / 2;
+            if (self.compare)(&self.data[idx], &self.data[parent]) == std::cmp::Ordering::Less {
+                self.data.swap(idx, parent);
+                idx = parent;
+            } else {
+                break;
+            }
+        }
     }
 
     /// Pop and return the minimum value from the heap.
     pub fn pop(&mut self) -> Option<T> {
-        // Hint: swap data[0] with data[last], pop the last element,
-        // then sift-down from position 0 to restore the heap invariant.
-        todo!()
+        if self.data.is_empty() {
+            return None;
+        }
+        let len = self.data.len();
+        if len == 1 {
+            return self.data.pop();
+        }
+        // Swap root with last element, remove last
+        self.data.swap(0, len - 1);
+        let result = self.data.pop();
+        // Sift down from root
+        let mut idx = 0;
+        let len = self.data.len();
+        loop {
+            let left = 2 * idx + 1;
+            let right = 2 * idx + 2;
+            let mut smallest = idx;
+            if left < len && (self.compare)(&self.data[left], &self.data[smallest]) == std::cmp::Ordering::Less {
+                smallest = left;
+            }
+            if right < len && (self.compare)(&self.data[right], &self.data[smallest]) == std::cmp::Ordering::Less {
+                smallest = right;
+            }
+            if smallest != idx {
+                self.data.swap(idx, smallest);
+                idx = smallest;
+            } else {
+                break;
+            }
+        }
+        result
     }
 
     /// Peek at the minimum value without removing it.
