@@ -1,0 +1,1051 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generated": "2026-03-18T00:00:00Z",
+    "git_sha": "8a36d6d",
+    "iteration": 0,
+    "scoring_rubric": "metrics/rubric.md",
+    "profiles_spec": "metrics/profiles.md"
+  },
+  "weights": {
+    "learnability": 0.20,
+    "approachability": 0.20,
+    "progression": 0.20,
+    "rust_friction": 0.15,
+    "concept_density": 0.10,
+    "test_ped_value": 0.15
+  },
+  "lessons": {
+    "L01": {
+      "name": "Arena Allocator",
+      "part": "I",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 65,
+        "progression": 55,
+        "rust_friction": 55,
+        "concept_density": 85,
+        "test_ped_value": 72
+      },
+      "overall": 66,
+      "monte_carlo": { "mean": 65.2, "stdev": 5.1 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 20,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 13,
+        "assertion_msg_ratio": 0.19,
+        "todo_count": 11,
+        "has_helpers": true,
+        "lines_per_test": 14,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 5,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L02": {
+      "name": "Data Types",
+      "part": "I",
+      "dimensions": {
+        "learnability": 75,
+        "approachability": 68,
+        "progression": 65,
+        "rust_friction": 80,
+        "concept_density": 85,
+        "test_ped_value": 68
+      },
+      "overall": 73,
+      "monte_carlo": { "mean": 72.5, "stdev": 3.8 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 18,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 16,
+        "assertion_msg_ratio": 0.11,
+        "todo_count": 13,
+        "has_helpers": false,
+        "lines_per_test": 10,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 3,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L03": {
+      "name": "Columnar Vectors",
+      "part": "I",
+      "dimensions": {
+        "learnability": 73,
+        "approachability": 62,
+        "progression": 70,
+        "rust_friction": 55,
+        "concept_density": 85,
+        "test_ped_value": 65
+      },
+      "overall": 68,
+      "monte_carlo": { "mean": 67.1, "stdev": 5.5 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 41,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 18,
+        "assertion_msg_ratio": 0.07,
+        "todo_count": 20,
+        "has_helpers": false,
+        "lines_per_test": 12,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L04": {
+      "name": "Data Chunks",
+      "part": "I",
+      "dimensions": {
+        "learnability": 74,
+        "approachability": 72,
+        "progression": 75,
+        "rust_friction": 82,
+        "concept_density": 100,
+        "test_ped_value": 68
+      },
+      "overall": 77,
+      "monte_carlo": { "mean": 76.3, "stdev": 3.2 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 22,
+        "concept_refs": 2,
+        "analogies": 3,
+        "test_count": 16,
+        "assertion_msg_ratio": 0.08,
+        "todo_count": 9,
+        "has_helpers": true,
+        "lines_per_test": 10,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 1,
+        "generic_params": 4,
+        "files_in_lesson": 1
+      }
+    },
+    "L05": {
+      "name": "RLE Compression",
+      "part": "II",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 74,
+        "progression": 68,
+        "rust_friction": 78,
+        "concept_density": 85,
+        "test_ped_value": 62
+      },
+      "overall": 72,
+      "monte_carlo": { "mean": 71.4, "stdev": 4.0 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 9,
+        "concept_refs": 2,
+        "analogies": 3,
+        "test_count": 11,
+        "assertion_msg_ratio": 0.13,
+        "todo_count": 6,
+        "has_helpers": false,
+        "lines_per_test": 10,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 12,
+        "files_in_lesson": 1
+      }
+    },
+    "L06": {
+      "name": "Dictionary Encoding",
+      "part": "II",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 72,
+        "progression": 72,
+        "rust_friction": 75,
+        "concept_density": 85,
+        "test_ped_value": 65
+      },
+      "overall": 73,
+      "monte_carlo": { "mean": 72.3, "stdev": 3.5 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 14,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 12,
+        "assertion_msg_ratio": 0.14,
+        "todo_count": 9,
+        "has_helpers": false,
+        "lines_per_test": 10,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 17,
+        "files_in_lesson": 1
+      }
+    },
+    "L07": {
+      "name": "Bitpacking & Delta",
+      "part": "II",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 58,
+        "progression": 75,
+        "rust_friction": 72,
+        "concept_density": 60,
+        "test_ped_value": 62
+      },
+      "overall": 66,
+      "monte_carlo": { "mean": 65.8, "stdev": 4.2 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 15,
+        "concept_refs": 2,
+        "analogies": 4,
+        "test_count": 13,
+        "assertion_msg_ratio": 0.17,
+        "todo_count": 12,
+        "has_helpers": false,
+        "lines_per_test": 11,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 0,
+        "files_in_lesson": 2
+      }
+    },
+    "L08": {
+      "name": "Compression Framework",
+      "part": "II",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 65,
+        "progression": 78,
+        "rust_friction": 75,
+        "concept_density": 85,
+        "test_ped_value": 70
+      },
+      "overall": 73,
+      "monte_carlo": { "mean": 72.4, "stdev": 3.4 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 14,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 13,
+        "assertion_msg_ratio": 0.22,
+        "todo_count": 6,
+        "has_helpers": true,
+        "lines_per_test": 11,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 1,
+        "files_in_lesson": 1
+      }
+    },
+    "L09": {
+      "name": "Pages & Layout",
+      "part": "III",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 60,
+        "progression": 72,
+        "rust_friction": 70,
+        "concept_density": 85,
+        "test_ped_value": 68
+      },
+      "overall": 70,
+      "monte_carlo": { "mean": 69.6, "stdev": 4.1 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 23,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 13,
+        "assertion_msg_ratio": 0.20,
+        "todo_count": 15,
+        "has_helpers": false,
+        "lines_per_test": 9,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L10": {
+      "name": "Buffer Pool",
+      "part": "III",
+      "dimensions": {
+        "learnability": 74,
+        "approachability": 58,
+        "progression": 75,
+        "rust_friction": 65,
+        "concept_density": 60,
+        "test_ped_value": 68
+      },
+      "overall": 67,
+      "monte_carlo": { "mean": 66.8, "stdev": 5.0 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 20,
+        "concept_refs": 5,
+        "analogies": 3,
+        "test_count": 12,
+        "assertion_msg_ratio": 0.19,
+        "todo_count": 15,
+        "has_helpers": true,
+        "lines_per_test": 12,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 1,
+        "files_in_lesson": 1
+      }
+    },
+    "L11": {
+      "name": "Columnar Writer",
+      "part": "III",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 56,
+        "progression": 72,
+        "rust_friction": 65,
+        "concept_density": 85,
+        "test_ped_value": 58
+      },
+      "overall": 66,
+      "monte_carlo": { "mean": 65.2, "stdev": 4.8 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 16,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 10,
+        "assertion_msg_ratio": 0.14,
+        "todo_count": 11,
+        "has_helpers": true,
+        "lines_per_test": 15,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 11,
+        "files_in_lesson": 1
+      }
+    },
+    "L12": {
+      "name": "Columnar Reader",
+      "part": "III",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 62,
+        "progression": 78,
+        "rust_friction": 65,
+        "concept_density": 85,
+        "test_ped_value": 60
+      },
+      "overall": 69,
+      "monte_carlo": { "mean": 68.8, "stdev": 4.3 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 10,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 9,
+        "assertion_msg_ratio": 0.20,
+        "todo_count": 4,
+        "has_helpers": true,
+        "lines_per_test": 18,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L13": {
+      "name": "Expressions",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 68,
+        "progression": 68,
+        "rust_friction": 72,
+        "concept_density": 85,
+        "test_ped_value": 65
+      },
+      "overall": 71,
+      "monte_carlo": { "mean": 70.3, "stdev": 3.6 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 13,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 17,
+        "assertion_msg_ratio": 0.10,
+        "todo_count": 4,
+        "has_helpers": false,
+        "lines_per_test": 14,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 4,
+        "files_in_lesson": 1
+      }
+    },
+    "L14": {
+      "name": "Pipelines",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 62,
+        "progression": 72,
+        "rust_friction": 68,
+        "concept_density": 85,
+        "test_ped_value": 58
+      },
+      "overall": 68,
+      "monte_carlo": { "mean": 67.5, "stdev": 4.0 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 27,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 7,
+        "assertion_msg_ratio": 0.06,
+        "todo_count": 5,
+        "has_helpers": true,
+        "lines_per_test": 18,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 1,
+        "generic_params": 6,
+        "files_in_lesson": 1
+      }
+    },
+    "L15": {
+      "name": "Scan, Filter, Projection",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 55,
+        "progression": 75,
+        "rust_friction": 70,
+        "concept_density": 60,
+        "test_ped_value": 60
+      },
+      "overall": 65,
+      "monte_carlo": { "mean": 64.5, "stdev": 4.8 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 8,
+        "concept_refs": 2,
+        "analogies": 2,
+        "test_count": 8,
+        "assertion_msg_ratio": 0.13,
+        "todo_count": 6,
+        "has_helpers": true,
+        "lines_per_test": 22,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 8,
+        "files_in_lesson": 3
+      }
+    },
+    "L16": {
+      "name": "Hash Aggregation",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 60,
+        "progression": 72,
+        "rust_friction": 65,
+        "concept_density": 85,
+        "test_ped_value": 68
+      },
+      "overall": 69,
+      "monte_carlo": { "mean": 68.5, "stdev": 4.3 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 16,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 11,
+        "assertion_msg_ratio": 0.15,
+        "todo_count": 8,
+        "has_helpers": true,
+        "lines_per_test": 19,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 15,
+        "files_in_lesson": 1
+      }
+    },
+    "L17": {
+      "name": "Hash Join",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 58,
+        "progression": 78,
+        "rust_friction": 72,
+        "concept_density": 85,
+        "test_ped_value": 68
+      },
+      "overall": 71,
+      "monte_carlo": { "mean": 70.2, "stdev": 4.5 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 12,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 13,
+        "assertion_msg_ratio": 0.19,
+        "todo_count": 7,
+        "has_helpers": true,
+        "lines_per_test": 13,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 7,
+        "files_in_lesson": 1
+      }
+    },
+    "L18": {
+      "name": "Sort-Merge Join",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 55,
+        "progression": 78,
+        "rust_friction": 62,
+        "concept_density": 85,
+        "test_ped_value": 65
+      },
+      "overall": 69,
+      "monte_carlo": { "mean": 68.0, "stdev": 5.2 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 12,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 10,
+        "assertion_msg_ratio": 0.20,
+        "todo_count": 5,
+        "has_helpers": true,
+        "lines_per_test": 17,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 1,
+        "generic_params": 10,
+        "files_in_lesson": 1
+      }
+    },
+    "L19": {
+      "name": "External Sort",
+      "part": "IV",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 55,
+        "progression": 72,
+        "rust_friction": 62,
+        "concept_density": 60,
+        "test_ped_value": 68
+      },
+      "overall": 65,
+      "monte_carlo": { "mean": 64.3, "stdev": 4.5 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 13,
+        "concept_refs": 4,
+        "analogies": 2,
+        "test_count": 16,
+        "assertion_msg_ratio": 0.17,
+        "todo_count": 11,
+        "has_helpers": true,
+        "lines_per_test": 14,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 1,
+        "generic_params": 18,
+        "files_in_lesson": 1
+      }
+    },
+    "L20": {
+      "name": "SQL Lexer",
+      "part": "V",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 68,
+        "progression": 55,
+        "rust_friction": 75,
+        "concept_density": 85,
+        "test_ped_value": 62
+      },
+      "overall": 68,
+      "monte_carlo": { "mean": 68.1, "stdev": 4.7 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 10,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 12,
+        "assertion_msg_ratio": 0.13,
+        "todo_count": 5,
+        "has_helpers": false,
+        "lines_per_test": 13,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 2,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L21": {
+      "name": "SQL Parser",
+      "part": "V",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 52,
+        "progression": 78,
+        "rust_friction": 62,
+        "concept_density": 60,
+        "test_ped_value": 60
+      },
+      "overall": 64,
+      "monte_carlo": { "mean": 63.2, "stdev": 5.3 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 13,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 17,
+        "assertion_msg_ratio": 0.11,
+        "todo_count": 10,
+        "has_helpers": false,
+        "lines_per_test": 13,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 1,
+        "generic_params": 5,
+        "files_in_lesson": 2
+      }
+    },
+    "L22": {
+      "name": "Logical Plan",
+      "part": "V",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 65,
+        "progression": 72,
+        "rust_friction": 68,
+        "concept_density": 85,
+        "test_ped_value": 58
+      },
+      "overall": 69,
+      "monte_carlo": { "mean": 68.4, "stdev": 3.9 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 19,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 13,
+        "assertion_msg_ratio": 0.09,
+        "todo_count": 3,
+        "has_helpers": false,
+        "lines_per_test": 12,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 1,
+        "generic_params": 10,
+        "files_in_lesson": 1
+      }
+    },
+    "L23": {
+      "name": "Binder & Catalog",
+      "part": "V",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 58,
+        "progression": 72,
+        "rust_friction": 58,
+        "concept_density": 60,
+        "test_ped_value": 62
+      },
+      "overall": 64,
+      "monte_carlo": { "mean": 63.8, "stdev": 5.0 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 20,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 14,
+        "assertion_msg_ratio": 0.14,
+        "todo_count": 12,
+        "has_helpers": true,
+        "lines_per_test": 12,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 6,
+        "generic_params": 5,
+        "files_in_lesson": 2
+      }
+    },
+    "L24": {
+      "name": "Physical Plan",
+      "part": "V",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 62,
+        "progression": 78,
+        "rust_friction": 58,
+        "concept_density": 85,
+        "test_ped_value": 55
+      },
+      "overall": 67,
+      "monte_carlo": { "mean": 66.4, "stdev": 5.1 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 11,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 14,
+        "assertion_msg_ratio": 0.12,
+        "todo_count": 6,
+        "has_helpers": true,
+        "lines_per_test": 8,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 5,
+        "generic_params": 4,
+        "files_in_lesson": 2
+      }
+    },
+    "L25": {
+      "name": "Rule Optimizer",
+      "part": "VI",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 55,
+        "progression": 72,
+        "rust_friction": 70,
+        "concept_density": 60,
+        "test_ped_value": 58
+      },
+      "overall": 65,
+      "monte_carlo": { "mean": 64.2, "stdev": 4.4 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 10,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 9,
+        "assertion_msg_ratio": 0.12,
+        "todo_count": 7,
+        "has_helpers": true,
+        "lines_per_test": 20,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 0,
+        "files_in_lesson": 1
+      }
+    },
+    "L26": {
+      "name": "Cost Optimizer",
+      "part": "VI",
+      "dimensions": {
+        "learnability": 65,
+        "approachability": 48,
+        "progression": 72,
+        "rust_friction": 65,
+        "concept_density": 35,
+        "test_ped_value": 58
+      },
+      "overall": 59,
+      "monte_carlo": { "mean": 58.5, "stdev": 5.6 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 22,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 15,
+        "assertion_msg_ratio": 0.11,
+        "todo_count": 13,
+        "has_helpers": true,
+        "lines_per_test": 15,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 5,
+        "files_in_lesson": 3
+      }
+    },
+    "L27": {
+      "name": "MVCC",
+      "part": "VII",
+      "dimensions": {
+        "learnability": 72,
+        "approachability": 55,
+        "progression": 62,
+        "rust_friction": 62,
+        "concept_density": 85,
+        "test_ped_value": 62
+      },
+      "overall": 65,
+      "monte_carlo": { "mean": 64.5, "stdev": 4.8 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 19,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 10,
+        "assertion_msg_ratio": 0.18,
+        "todo_count": 15,
+        "has_helpers": false,
+        "lines_per_test": 18,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 10,
+        "files_in_lesson": 1
+      }
+    },
+    "L28": {
+      "name": "WAL",
+      "part": "VII",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 60,
+        "progression": 75,
+        "rust_friction": 68,
+        "concept_density": 85,
+        "test_ped_value": 55
+      },
+      "overall": 68,
+      "monte_carlo": { "mean": 67.3, "stdev": 4.2 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 14,
+        "concept_refs": 2,
+        "analogies": 3,
+        "test_count": 12,
+        "assertion_msg_ratio": 0.13,
+        "todo_count": 8,
+        "has_helpers": false,
+        "lines_per_test": 15,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 12,
+        "files_in_lesson": 1
+      }
+    },
+    "L29": {
+      "name": "Morsel Parallelism",
+      "part": "VIII",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 52,
+        "progression": 68,
+        "rust_friction": 55,
+        "concept_density": 60,
+        "test_ped_value": 55
+      },
+      "overall": 60,
+      "monte_carlo": { "mean": 59.8, "stdev": 5.5 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 13,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 7,
+        "assertion_msg_ratio": 0.14,
+        "todo_count": 8,
+        "has_helpers": true,
+        "lines_per_test": 21,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 7,
+        "files_in_lesson": 2
+      }
+    },
+    "L30": {
+      "name": "Window Functions",
+      "part": "VIII",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 55,
+        "progression": 65,
+        "rust_friction": 62,
+        "concept_density": 85,
+        "test_ped_value": 62
+      },
+      "overall": 65,
+      "monte_carlo": { "mean": 64.6, "stdev": 4.5 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 7,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 9,
+        "assertion_msg_ratio": 0.16,
+        "todo_count": 4,
+        "has_helpers": true,
+        "lines_per_test": 17,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 10,
+        "files_in_lesson": 1
+      }
+    },
+    "L31": {
+      "name": "Partitioning",
+      "part": "VIII",
+      "dimensions": {
+        "learnability": 70,
+        "approachability": 60,
+        "progression": 68,
+        "rust_friction": 72,
+        "concept_density": 85,
+        "test_ped_value": 58
+      },
+      "overall": 68,
+      "monte_carlo": { "mean": 67.0, "stdev": 4.1 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 13,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 9,
+        "assertion_msg_ratio": 0.12,
+        "todo_count": 9,
+        "has_helpers": true,
+        "lines_per_test": 19,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 4,
+        "files_in_lesson": 1
+      }
+    },
+    "L32": {
+      "name": "Distributed Plan",
+      "part": "VIII",
+      "dimensions": {
+        "learnability": 65,
+        "approachability": 58,
+        "progression": 72,
+        "rust_friction": 68,
+        "concept_density": 85,
+        "test_ped_value": 55
+      },
+      "overall": 66,
+      "monte_carlo": { "mean": 65.3, "stdev": 4.3 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 7,
+        "concept_refs": 3,
+        "analogies": 2,
+        "test_count": 10,
+        "assertion_msg_ratio": 0.20,
+        "todo_count": 4,
+        "has_helpers": true,
+        "lines_per_test": 12,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 9,
+        "files_in_lesson": 2
+      }
+    },
+    "L33": {
+      "name": "Shuffle & Exchange",
+      "part": "VIII",
+      "dimensions": {
+        "learnability": 65,
+        "approachability": 50,
+        "progression": 75,
+        "rust_friction": 55,
+        "concept_density": 60,
+        "test_ped_value": 55
+      },
+      "overall": 61,
+      "monte_carlo": { "mean": 60.1, "stdev": 5.8 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 9,
+        "concept_refs": 2,
+        "analogies": 3,
+        "test_count": 9,
+        "assertion_msg_ratio": 0.17,
+        "todo_count": 8,
+        "has_helpers": true,
+        "lines_per_test": 14,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 9,
+        "files_in_lesson": 2
+      }
+    },
+    "L34": {
+      "name": "Adaptive Execution",
+      "part": "IX",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 55,
+        "progression": 68,
+        "rust_friction": 68,
+        "concept_density": 60,
+        "test_ped_value": 58
+      },
+      "overall": 63,
+      "monte_carlo": { "mean": 62.5, "stdev": 4.4 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 10,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 9,
+        "assertion_msg_ratio": 0.25,
+        "todo_count": 8,
+        "has_helpers": true,
+        "lines_per_test": 12,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 3,
+        "files_in_lesson": 1
+      }
+    },
+    "L35": {
+      "name": "SIMD Vectorization",
+      "part": "IX",
+      "dimensions": {
+        "learnability": 68,
+        "approachability": 52,
+        "progression": 62,
+        "rust_friction": 52,
+        "concept_density": 85,
+        "test_ped_value": 55
+      },
+      "overall": 61,
+      "monte_carlo": { "mean": 60.3, "stdev": 5.4 },
+      "signals": {
+        "hint_sections": 5,
+        "doc_comments": 12,
+        "concept_refs": 3,
+        "analogies": 3,
+        "test_count": 14,
+        "assertion_msg_ratio": 0.08,
+        "todo_count": 11,
+        "has_helpers": false,
+        "lines_per_test": 10,
+        "unsafe_blocks": 0,
+        "lifetime_annotations": 0,
+        "generic_params": 0,
+        "files_in_lesson": 1
+      }
+    }
+  },
+  "dimension_averages": {
+    "learnability":    { "mean": 70.1, "min": 65, "max": 75, "stdev": 2.7 },
+    "approachability": { "mean": 59.7, "min": 48, "max": 74, "stdev": 6.8 },
+    "progression":     { "mean": 70.7, "min": 55, "max": 78, "stdev": 5.8 },
+    "rust_friction":   { "mean": 66.1, "min": 52, "max": 82, "stdev": 7.5 },
+    "concept_density": { "mean": 76.7, "min": 35, "max": 100, "stdev": 15.5 },
+    "test_ped_value":  { "mean": 62.1, "min": 55, "max": 72, "stdev": 5.0 }
+  },
+  "curriculum_aggregate": {
+    "mean_overall": 66.7,
+    "stdev_overall": 4.0,
+    "curriculum_score": 64.7,
+    "lesson_count": 35,
+    "lessons_below_60": ["L26", "L29"],
+    "lessons_above_75": ["L04"]
+  }
+}
