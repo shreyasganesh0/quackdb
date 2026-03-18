@@ -75,6 +75,9 @@ Rather than moving entire rows around during sort, create a vector of row indice
 - Forgetting the `'static` lifetime bound on the heap comparator closure. Because the closure is boxed, it must own all its data -- it cannot borrow references with shorter lifetimes.
 - Returning unsorted data from TopN. The TopN operator must both select the N smallest rows AND return them in sorted order.
 
+## Where to Start
+Start with the MinHeap — it is a standalone data structure with clear tests (`test_min_heap`). Once push/pop work, implement `sort_chunk` (in-memory sort). Then tackle the external sort pipeline and k-way merge. TopN is a simple variation at the end.
+
 ## Step-by-Step Implementation Order
 1. Start with `MinHeap::new()` -- store an empty Vec and Box the comparison closure
 2. Implement `push()` -- append to Vec, sift up from the last index

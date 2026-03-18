@@ -71,6 +71,9 @@ The parser peeks at the next token to decide which grammar rule to follow. This 
 - Forgetting that left-associative operators need `(left_bp, left_bp + 1)` while right-associative need `(left_bp + 1, left_bp)`. Getting this backward changes how `a - b - c` is grouped.
 - Not handling all prefix expressions in the Pratt parser. Unary NOT, unary minus, parenthesized expressions, function calls, CASE WHEN, and literal values are all prefix forms that must be recognized before the infix loop begins.
 
+## Where to Start
+Start with `ast.rs` — read the data structures to understand what the parser must produce. Then implement `parse_expression` using Pratt parsing (it has the clearest test). Build outward: expressions → SELECT → FROM → WHERE → JOIN.
+
 ## Step-by-Step Implementation Order
 1. Implement helpers: `peek()`, `advance()`, `expect_keyword()`, `expect_token()`
 2. Implement `parse_sql()` -- create Lexer, tokenize, create Parser, call `parse_statement()`

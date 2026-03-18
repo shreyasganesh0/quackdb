@@ -107,6 +107,9 @@ fn normalize_temps(temps: &[i64]) -> (i64, Vec<u64>) {
 }
 ```
 
+## Where to Start
+Start with `bitpack.rs` — it is self-contained and shorter. Once pack/unpack work, move to `delta.rs` where encode/decode are simple consecutive differences. The combined `delta_bitpack` functions tie them together at the end.
+
 ## Step-by-Step Implementation Order
 1. Start with `bits_required()` -- handle 0 as a special case (return 0), otherwise use `64 - value.leading_zeros()` cast to u8
 2. Implement `pack()` for u32 -- iterate values, for each one write `bit_width` bits at the current bit offset into the output Vec<u8>; handle spanning across byte boundaries
