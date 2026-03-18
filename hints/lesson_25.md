@@ -3,6 +3,8 @@
 ## What You're Building
 A rule-based query optimizer that transforms a logical plan into a more efficient equivalent. Each rule (predicate pushdown, projection pushdown, constant folding, filter merge, limit pushdown) is a struct implementing the `OptimizerRule` trait. The `optimize()` function applies all rules in a loop until the plan stops changing (fixpoint iteration). This is how real databases make queries faster without changing their meaning.
 
+> **Unified Concept:** All 5 rules follow the same pattern -- learn one, and the others are variations. Each rule implements `apply(plan) -> plan`, recursing into children first, then pattern-matching the current node. The only difference is *which* pattern each rule looks for. Master the recursive-rewrite pattern once, and you can write any rule.
+
 ## Concept Recap
 Building on Lessons 19-24: The `LogicalPlan` tree you built in the planner is exactly what the optimizer transforms. Each rule takes a `LogicalPlan`, pattern-matches on its structure, and returns a rewritten tree. The `LogicalExpr` variants (ColumnRef, Literal, BinaryOp) from the planner are what constant folding and predicate analysis operate on.
 

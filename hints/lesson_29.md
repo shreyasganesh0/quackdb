@@ -3,6 +3,8 @@
 ## What You're Building
 A morsel-driven parallel execution framework that divides work into small chunks (morsels) and distributes them across worker threads. This is the approach used by modern analytical databases to achieve intra-query parallelism -- rather than partitioning data statically, workers dynamically steal morsels from a shared queue, naturally balancing load across cores.
 
+> **Unified Concept:** The morsel queue and the scheduler are ONE concept: parallel execution via dynamic work distribution. The queue is the shared work pool, the scheduler spawns workers that drain it. Think of it as a single pattern -- "take work, process it, store result" -- running on multiple threads simultaneously.
+
 ## Concept Recap
 Building on Lesson 14 (Pipeline Execution): The `Pipeline` and `PhysicalOperator` trait you built earlier execute operators sequentially on DataChunks. Morsel parallelism wraps that same pattern -- each worker thread gets its own operator instance and processes DataChunks (morsels) independently. The `DataChunk` is the morsel. The key difference is that now multiple threads run the same pipeline logic concurrently.
 
@@ -90,6 +92,10 @@ fn worker_loop(queue: &TaskQueue, results: &Mutex<Vec<String>>) {
 6. Implement `ParallelPipelineExecutor::new()` -- store num_workers.
 7. Implement `ParallelPipelineExecutor::execute()` -- spawn `num_workers` threads, each with its own operator from the factory; in a loop, take morsels from the queue and execute the operator, pushing results to the collector. Join all handles.
 8. Watch out for: the operator_factory must be wrapped in Arc to share across threads; each thread must use `move` closures; join all thread handles and propagate any errors.
+
+## Rust Sidebar: Send + Sync Bounds
+If you hit `dyn PhysicalOperator cannot be sent between threads safely` or `the trait Send is not implemented`, here's what's happening: `std::thread::spawn` requires its closure (and everything it captures) to be `Send`. Your `Box<dyn PhysicalOperator>` is not `Send` by default because the compiler does not know whether the concrete type inside is thread-safe.
+The fix: change the trait object to `Box<dyn PhysicalOperator + Send>` and make the factory closure return that type. The factory itself must be `Send + Sync` (wrap in `Arc`). This tells the compiler "I guarantee each operator instance is safe to move into a new thread." Since each thread gets its *own* operator from the factory, there is no shared mutable state.
 
 ## Reading the Tests
 - **`test_morsel_queue_creation`** creates a queue from 4 chunks of 100 rows each and checks that `total()` is 4 and `remaining()` is 4. This validates your constructor correctly counts morsels.

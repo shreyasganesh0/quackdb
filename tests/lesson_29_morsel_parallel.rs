@@ -161,6 +161,41 @@ fn test_parallel_scan_filter() {
     assert_eq!(total_rows, 949, "parallel filter should produce the same result as sequential -- values 51..999 = 949 rows");
 }
 
+// ── 6b. Edge case: parallel execution with zero-row morsels ─────────
+
+#[test]
+fn test_parallel_collector_multiple_pushes() {
+    // Edge case: collector should handle many pushes from many threads
+    let collector = Arc::new(ParallelCollector::new());
+    let mut handles = Vec::new();
+    for i in 0..8 {
+        let c = Arc::clone(&collector);
+        handles.push(std::thread::spawn(move || {
+            let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+            chunk.append_row(&[ScalarValue::Int32(i)]);
+            c.push(chunk);
+        }));
+    }
+    for h in handles { h.join().unwrap(); }
+    let results = Arc::try_unwrap(collector).unwrap().into_results();
+    let total: usize = results.iter().map(|c| c.count()).sum();
+    assert_eq!(total, 8, "parallel collector must handle concurrent pushes from multiple threads without losing data");
+}
+
+#[test]
+fn test_morsel_queue_ids_unique() {
+    // Edge case: morsel IDs should be unique
+    let chunks = make_chunks(5, 10);
+    let queue = MorselQueue::new(chunks);
+    let mut ids = Vec::new();
+    while let Some(m) = queue.take() {
+        ids.push(m.morsel_id);
+    }
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), 5, "each morsel must have a unique ID for tracking and debugging");
+}
+
 // ── 7. Deterministic results ────────────────────────────────────────
 
 #[test]

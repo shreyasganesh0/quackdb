@@ -206,6 +206,34 @@ fn test_limit_pushdown() {
     let _optimized = rule.apply(limit).expect("limit pushdown should convert LIMIT over SORT into a top-N operation");
 }
 
+// ── 8b. Edge case: limit pushdown on non-sort input ─────────────────
+
+#[test]
+fn test_rules_return_names() {
+    // Edge case: each rule should have a non-empty name for debugging
+    let rules = default_rules();
+    for rule in &rules {
+        assert!(!rule.name().is_empty(), "every optimizer rule must have a non-empty name for diagnostics and logging");
+    }
+}
+
+#[test]
+fn test_constant_folding_subtraction() {
+    // Edge case: constant folding with subtraction
+    let scan = make_scan("t", vec![("a", LogicalType::Int32)]);
+    let filter = LogicalPlan::Filter {
+        predicate: LogicalExpr::BinaryOp {
+            op: quackdb::sql::ast::BinaryOpAst::Subtract,
+            left: Box::new(LogicalExpr::Literal(ScalarValue::Int32(10))),
+            right: Box::new(LogicalExpr::Literal(ScalarValue::Int32(3))),
+        },
+        input: Box::new(scan),
+    };
+
+    let rule = ConstantFolding;
+    let _optimized = rule.apply(filter).expect("constant folding should handle subtraction of two literals");
+}
+
 // ── 9. Fixpoint optimization ────────────────────────────────────────
 
 #[test]

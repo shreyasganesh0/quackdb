@@ -3,6 +3,8 @@
 ## What You're Building
 A buffer pool manager that caches a fixed number of pages in memory and evicts the least-recently-used page when space runs out. It sits between the execution engine and disk, providing `fetch_page`, `unpin_page`, `new_page`, and `flush_page` operations. The disk backend is abstracted behind a `DiskManager` trait, allowing an in-memory implementation for testing and a file-backed one for production.
 
+> **Unified Concept:** Despite having multiple components (DiskManager trait, LRU list, pin counts, page table), this is ONE concept: a cache abstraction. The disk manager is the slow backing store, the buffer pool is the fast cache in front of it, and LRU + pin counts are the eviction policy. Everything serves a single purpose -- make disk pages appear to be in memory.
+
 ## Concept Recap
 Building on Lesson 09: You built `Page` with serialization, checksums, and the `PageBuilder`. Now you need a manager that caches pages in memory, loads them from disk on demand, and writes dirty pages back. The buffer pool uses `Page::to_bytes()` and `Page::from_bytes()` for disk persistence, and page IDs from your header to track which pages are cached.
 
@@ -126,6 +128,10 @@ impl BookCheckout {
 - **`test_buffer_pool_capacity_limit`** creates 5 pages in a pool of 5, unpins all, and checks size is 5. The pool should be at exactly its capacity.
 - **`test_buffer_pool_flush_all`** creates 3 dirty pages and calls `flush_all()`. This must succeed without errors.
 - **`test_inmemory_disk_manager`** directly tests the disk manager: allocate a page ID, create a page, write it, read it back, and verify the data. This confirms your disk abstraction works independently of the buffer pool.
+
+## Rust Sidebar: Generic Trait Bounds
+If you hit `the trait DiskManager is not implemented for D` or `no method named read_page found`, here's what's happening: `BufferPool<D>` is generic over `D`, but Rust does not know `D` has disk operations unless you add a trait bound. Without `D: DiskManager`, the compiler cannot resolve any method calls on the `storage` field.
+The fix: declare the struct as `struct BufferPool<D: DiskManager>` and repeat the bound on every `impl<D: DiskManager> BufferPool<D>` block. This tells the compiler "D could be any type, but it must implement DiskManager, so I can call `.read_page()`, `.write_page()`, and `.allocate_page()` on it."
 
 ## What Comes Next
 With pages cached in the buffer pool, Lesson 11 builds the **columnar file writer** --

@@ -3,6 +3,8 @@
 ## What You're Building
 A cost-based optimizer comprising three parts: column statistics and cardinality estimation, a cost model that assigns CPU/IO/network costs to plan nodes, and a join order optimizer that uses dynamic programming over relation subsets (DPsub) to find the cheapest join tree. Together, these let the database choose between physically equivalent plans by estimating which one is cheapest to execute.
 
+> **Unified Concept:** This lesson has three layers, but they are a pipeline: statistics feed into the cost model, the cost model feeds into join ordering. You do not need to understand all three at once. Start with statistics (just counting things), then cost model (just arithmetic on those counts), then join ordering (just picking the cheapest combination). Each layer only uses the one before it.
+
 ## Concept Recap
 Building on Lesson 25: The rule optimizer rewrites plans using structural patterns (e.g., "push filters down"). The cost optimizer goes further -- it enumerates multiple valid plans (especially join orderings) and picks the cheapest one using statistics. The `LogicalPlan` nodes and `Schema` from the planner are what the cardinality estimator and cost model analyze.
 

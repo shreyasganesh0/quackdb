@@ -3,6 +3,8 @@
 ## What You're Building
 A recursive descent parser that transforms tokens into an Abstract Syntax Tree (AST). The AST has Statement (Select, CreateTable, Insert, Drop), Expr (recursive with Box for binary ops, unary ops, CASE, BETWEEN), and TableRef (recursive with Box for joins and subqueries). Expression parsing uses Pratt parsing with binding power to handle precedence. This parser turns flat tokens into the tree structure the database engine operates on.
 
+> **Unified Concept:** The AST is a data structure, the parser is the algorithm. Together they are ONE concept: turning tokens into trees. The AST file defines *what* the tree looks like; the parser file defines *how* to build it. You cannot understand one without the other -- they are two halves of the same idea, split for code organization.
+
 ## Concept Recap
 Building on Lesson 20: You'll consume the `Token` and `Keyword` types produced by the lexer. The parser reads from a `Vec<PositionedToken>` using peek/advance helpers, just like the lexer reads characters. The AST you produce here will be consumed by the binder (L23), which converts it into the `LogicalPlan` (L22) that the physical planner (L24) turns into the `Pipeline` operators from Part IV.
 

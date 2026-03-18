@@ -89,6 +89,10 @@ fn alloc_aligned_buffer(size: usize, align: usize) -> Vec<u8> {
 7. Implement `aligned_alloc()` -- use `std::alloc::Layout::from_size_align` and `std::alloc::alloc_zeroed` in an unsafe block; construct a Vec from the raw pointer.
 8. Watch out for: aligned_alloc must use unsafe and handle the Layout correctly; the validity bitmask operates at word granularity (u64), so process 64 elements per word; ensure the sum functions use a wider accumulator type to prevent overflow.
 
+## Rust Sidebar: Unsafe Alloc + Layout
+If you hit `Layout::from_size_align: invalid parameters` or `misaligned pointer dereference`, here's what's happening: `std::alloc::alloc_zeroed` requires a `Layout` with non-zero size and a power-of-two alignment. Passing `align=0` or `size=0` panics. The returned pointer must be used carefully -- it is raw, unmanaged memory.
+The fix: `let layout = std::alloc::Layout::from_size_align(size, align).unwrap();` then `unsafe { let ptr = std::alloc::alloc_zeroed(layout); Vec::from_raw_parts(ptr, size, size) }`. The `Vec::from_raw_parts` takes ownership of the allocation. Critical: `Vec` will call `dealloc` with the *default* layout on drop, so only use this for aligned buffers where you control the lifecycle.
+
 ## Reading the Tests
 - **`test_vectorized_add_i32`** adds [1,2,3,4,5] + [10,20,30,40,50] and expects [11,22,33,44,55]. This is the simplest test -- get element-wise addition working first. It verifies basic correctness with no edge cases.
 - **`test_vectorized_add_f64`** does the same for floating point: [1.0,2.0,3.0] + [0.5,0.5,0.5] = [1.5,2.5,3.5]. This tests that your f64 version handles floating-point addition correctly.

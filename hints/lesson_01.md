@@ -122,6 +122,10 @@ impl ContainerYard {
 - **`test_scoped_arena_reset`** creates a scope, allocates, calls `reset()` on the scope, then allocates again. This confirms that resetting a scoped arena lets you reuse its portion of the parent's memory.
 - **`test_arena_default`** checks that a default-constructed arena has 0 bytes allocated and 0 blocks, confirming lazy block allocation.
 
+## Rust Sidebar: Unsafe Pointer Conversion
+If you hit `cannot convert *const u8 to &str` or `expected &str, found *const u8`, here's what's happening: `ArenaString` stores a raw pointer (`*const u8`) because the arena owns the memory, not the string. Rust cannot verify the pointer is valid at compile time, so you must use `unsafe` to convert it back.
+The fix: `unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.ptr, self.len)) }`. This is safe as long as the arena (which owns the memory) outlives the `ArenaString`. The `unsafe` block is telling the compiler "I guarantee this pointer is valid and points to valid UTF-8."
+
 ## What Comes Next
 This arena allocator is the memory foundation for the entire database. In Lesson 02,
 you'll build the **type system** (LogicalType, ScalarValue) that defines what kinds

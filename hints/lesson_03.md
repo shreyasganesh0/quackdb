@@ -139,6 +139,10 @@ impl<T: Clone> DefaultFill<T> {
 - **`test_vector_copy_with_selection`** writes 10 values (0, 100, 200, ...), creates a selection [1, 3, 7], copies to a new vector, and checks the result is [100, 300, 700]. This is how filtered scans produce output.
 - **`test_vector_string`** and **`test_vector_string_empty`** verify Varchar vectors can store and retrieve strings, including empty strings (which must not be confused with NULL).
 
+## Rust Sidebar: Unsafe Type-Punning
+If you hit `cannot cast *const u8 to *const i32` or `expected &[i32], found &[u8]`, here's what's happening: the `Vector` stores all data as `Vec<u8>`, but you need to read it as `&[i32]` or `&[f64]`. Rust's type system does not allow reinterpreting bytes as typed data without `unsafe`, because alignment and validity are not guaranteed at compile time.
+The fix: `unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, count) }`. This works because your `Vector::new()` allocates `count * byte_width` bytes -- enough room and correct alignment for the target type. The `as *const T` cast reinterprets the byte pointer as a typed pointer.
+
 ## What Comes Next
 With Vector and ValidityMask, you can store a single column. Lesson 04 bundles
 multiple Vectors into a **DataChunk** -- the row-group batch that flows through

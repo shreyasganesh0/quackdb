@@ -132,6 +132,26 @@ fn test_e2e_group_by() {
     assert_eq!(total, 2, "GROUP BY should collapse rows into one per distinct group key");
 }
 
+// ── 8b. GROUP BY edge case ────────────────────────────────────────
+
+#[test]
+fn test_e2e_where_no_match() {
+    // Edge case: WHERE clause that filters out all rows
+    let db = setup_db();
+    let results = db.execute_sql("SELECT * FROM users WHERE age > 100").unwrap();
+    let total: usize = results.iter().map(|c| c.count()).sum();
+    assert_eq!(total, 0, "WHERE clause that matches no rows should return an empty result set");
+}
+
+#[test]
+fn test_e2e_limit_exceeds_rows() {
+    // Edge case: LIMIT larger than available rows
+    let db = setup_db();
+    let results = db.execute_sql("SELECT * FROM users LIMIT 100").unwrap();
+    let total: usize = results.iter().map(|c| c.count()).sum();
+    assert_eq!(total, 4, "LIMIT larger than row count should return all available rows");
+}
+
 // ── 9. JOIN — full integration ──────────────────────────────────────
 
 #[test]

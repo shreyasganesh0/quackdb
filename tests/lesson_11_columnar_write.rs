@@ -163,6 +163,33 @@ fn test_columnar_write_chunk() {
     assert!(&buf[..4] == MAGIC, "DataChunk-based write must also produce a valid file header");
 }
 
+// ── 7b. DataChunk-based write with nulls ──────────────────────────
+
+#[test]
+fn test_columnar_write_chunk_single_row() {
+    // Edge case: writing a chunk with exactly one row
+    let schema = vec![("x".to_string(), LogicalType::Int32)];
+    let mut chunk = DataChunk::new(&[LogicalType::Int32]);
+    chunk.append_row(&[ScalarValue::Int32(99)]);
+
+    let mut buf = Vec::new();
+    let mut writer = ColumnarFileWriter::new(Cursor::new(&mut buf), schema).unwrap();
+    writer.write_chunk(&chunk).unwrap();
+    writer.finish().unwrap();
+
+    assert!(&buf[..4] == MAGIC, "single-row chunk write must produce a valid file");
+}
+
+#[test]
+fn test_column_stats_update_non_null_only() {
+    // Edge case: stats with no nulls at all should have null_count == 0
+    let mut stats = ColumnStats::new();
+    stats.update(&[1, 0, 0, 0], false);
+    stats.update(&[2, 0, 0, 0], false);
+    stats.update(&[3, 0, 0, 0], false);
+    assert_eq!(stats.null_count, 0, "stats with only non-null values must report null_count of 0");
+}
+
 // ── 8. Footer serialization ────────────────────────────────────────
 
 #[test]

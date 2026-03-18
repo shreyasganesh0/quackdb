@@ -3,6 +3,8 @@
 ## What You're Building
 Three fundamental execution operators that form the backbone of query processing. TableScanOperator reads data from any source with optional column pruning. FilterOperator evaluates a predicate expression and keeps only matching rows. ProjectionOperator computes a list of output expressions (column references, arithmetic, etc.) to reshape each chunk. Together they form the classic Scan-Filter-Project pipeline that most SQL queries reduce to.
 
+> **Unified Concept:** These three operators are ONE concept: the scan-filter-project pipeline. Each is simple individually -- the lesson is about how they compose. Data flows from scan (read) through filter (select rows) to projection (select/compute columns). The files are separate because each operator is its own struct, but the concept is the pipeline they form together.
+
 ## Concept Recap
 Building on Lessons 13-14: You'll use `Expression` and `ExpressionExecutor` from Lesson 13 to evaluate predicates and projection expressions. These operators plug into the `Pipeline` framework from Lesson 14 as `Box<dyn PhysicalOperator>`, using `InMemorySource` and `PipelineExecutor` to drive execution.
 

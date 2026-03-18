@@ -3,6 +3,8 @@
 ## What You're Building
 A catalog that stores table definitions and their data, and a binder that resolves column names, checks types, and translates parsed SQL (AST) into a logical plan. The catalog is the database's "phone book" -- it maps table names to their column schemas. The binder walks the AST, looks up names in the catalog, and produces a fully resolved `LogicalPlan` where every column reference has a concrete index and type.
 
+> **Unified Concept:** Catalog stores metadata, binder resolves names -- together they are ONE concept: name resolution. The catalog is passive data (a phone book), the binder is the active lookup process (dialing the number). They are split into separate files because one is a data structure and the other is an algorithm, but the concept is singular: turning string names into resolved, typed references.
+
 ## Concept Recap
 Building on Lessons 20-22: The lexer (L20) produces tokens, the parser (L21) produces an AST, and the logical plan (L22) defines the node types. The binder bridges the AST and the logical plan -- it takes the unresolved names from the parser and resolves them against the catalog to produce a fully typed `LogicalPlan` tree that the physical planner (L24) can convert into executable operators.
 
@@ -109,3 +111,7 @@ fn register(users: &mut HashMap<String, u64>, name: String, id: u64) -> Result<(
 - **`test_bind_aggregate`** binds `"SELECT age, COUNT(*) FROM users GROUP BY age"` and checks 2 output columns. This validates GROUP BY and aggregate function binding.
 - **`test_bind_scope_resolution`** directly constructs a `BindScope` with two tables that both have an "id" column. It checks that qualified `resolve(Some("users"), "id")` returns index 0, unqualified `resolve(None, "id")` fails (ambiguous), and `resolve(None, "name")` succeeds (unique). This is the core logic of name resolution.
 - **`test_table_info_helpers`** checks `find_column("id")`, `find_column("xyz")`, and `schema_types()`. This validates the TableInfo utility methods.
+
+## Rust Sidebar: Lifetime Annotations
+If you hit `missing lifetime specifier` or `borrowed value does not live long enough` on `Binder`, here's what's happening: `Binder` borrows the `Catalog` via `&Catalog`, but Rust needs to know how long that borrow lasts. Without a lifetime annotation, the compiler cannot prove the catalog outlives the binder.
+The fix: declare `struct Binder<'a> { catalog: &'a Catalog }` and `impl<'a> Binder<'a>`. The `'a` says "the binder can only live as long as the catalog it references." When constructing: `let binder = Binder::new(&catalog);` -- the compiler infers `'a` from the catalog's scope automatically.

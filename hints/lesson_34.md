@@ -3,6 +3,8 @@
 ## What You're Building
 An adaptive query execution layer that adjusts strategies at runtime based on observed data characteristics. The centerpiece is a Bloom filter -- a probabilistic data structure that can quickly test set membership with no false negatives but a controlled false positive rate. This enables runtime filter pushdown: after building one side of a join, construct a Bloom filter of join keys and use it to pre-filter the other side. The lesson also covers adaptive parallelism, which dynamically scales worker count based on runtime statistics like throughput and cardinality.
 
+> **Unified Concept:** The Bloom filter is a building block for the real concept: runtime adaptation. The lesson is about adjusting execution strategy based on what you observe *during* query execution, not before. The Bloom filter is the mechanism; adaptive parallelism is another mechanism. Both serve the same idea -- react to reality instead of relying solely on estimates.
+
 ## Concept Recap
 Building on Lesson 29 (Morsel Parallelism) and Lessons 11-12 (Hash Join): The Bloom filter is conceptually a lightweight version of the hash table you built for hash joins -- instead of storing full values, it stores just a few bits per entry. Adaptive parallelism extends the static worker count from Lesson 29's ParallelPipelineExecutor, adjusting it dynamically based on observed throughput. The runtime statistics (row counts, timing) connect back to the cost model from Lesson 26.
 

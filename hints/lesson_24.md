@@ -93,6 +93,10 @@ For a table scan, you fetch the stored `Vec<DataChunk>` from the catalog and wra
 - **`test_e2e_expression_in_select`** runs `SELECT age * 2 FROM users WHERE id = 1` and expects 60 (30*2). This validates that computed expressions in the SELECT list are correctly translated to physical projection operators.
 - **`test_database_default`** checks that `Database::default()` has an empty catalog. This is a simple constructor test.
 
+## Rust Sidebar: Trait Object + Lifetime
+If you hit `the trait PhysicalOperator cannot be made into an object` or lifetime errors on `PhysicalPlanBuilder<'a>`, here's what's happening: the builder borrows the catalog (`&'a Catalog`) and also creates `Box<dyn DataSource>` and `Box<dyn PhysicalOperator>` trait objects. The compiler needs to know that the data inside those boxes lives long enough.
+The fix: annotate the builder as `struct PhysicalPlanBuilder<'a> { catalog: &'a Catalog }`. For trait objects, ensure they are `'static` or carry the appropriate lifetime. If your `DataSource` holds cloned `Vec<DataChunk>` (not references), it is `'static` and no extra annotation is needed. The key insight: clone catalog data into the source so it owns its data, avoiding lifetime entanglement.
+
 ## What Comes Next
 You now have a working end-to-end SQL database: parsing, binding, planning, and
 executing queries. But the plans are naive -- they execute whatever the parser

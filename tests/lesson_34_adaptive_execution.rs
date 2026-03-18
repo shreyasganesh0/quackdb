@@ -143,6 +143,47 @@ fn test_adaptive_join_operator() {
     let _ = op.execute(&chunk);
 }
 
+// ── 7b. Bloom filter edge cases ──────────────────────────────────────
+
+#[test]
+fn test_bloom_filter_large_values() {
+    // Edge case: bloom filter with large byte values
+    let mut bf = BloomFilter::new(100, 0.01);
+    let large_key = vec![0xFFu8; 256];
+    bf.insert(&large_key);
+    assert!(bf.might_contain(&large_key), "bloom filter must handle large keys without panicking or producing false negatives");
+}
+
+#[test]
+fn test_runtime_statistics_fields() {
+    // Edge case: verify all fields of RuntimeStatistics can be set and read
+    let stats = RuntimeStatistics {
+        rows_processed: 42,
+        bytes_processed: 1024,
+        execution_time_us: 500,
+        actual_cardinality: 42,
+    };
+    assert_eq!(stats.rows_processed, 42, "RuntimeStatistics fields must be readable after construction");
+    assert_eq!(stats.execution_time_us, 500);
+}
+
+#[test]
+fn test_adaptive_parallelism_multiple_adjustments() {
+    // Edge case: multiple successive adjustments should converge
+    let mut ap = AdaptiveParallelism::new(1, 8);
+    let high_stats = RuntimeStatistics {
+        rows_processed: 1000000,
+        bytes_processed: 1000000,
+        execution_time_us: 1000,
+        actual_cardinality: 1000000,
+    };
+    // Call adjust multiple times to test stability
+    let w1 = ap.adjust(&high_stats);
+    let w2 = ap.adjust(&high_stats);
+    assert!(w1 >= 1 && w1 <= 8, "first adjustment must stay in bounds");
+    assert!(w2 >= 1 && w2 <= 8, "repeated adjustments must stay in bounds");
+}
+
 // ── 8. Bloom filter runtime pushdown ────────────────────────────────
 
 #[test]

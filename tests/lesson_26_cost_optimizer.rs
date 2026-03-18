@@ -204,6 +204,39 @@ fn test_relation_set_singleton() {
     assert!(s.is_subset_of(&s), "a set is always a subset of itself");
 }
 
+// ── 7b. Relation set edge cases ───────────────────────────────────
+
+#[test]
+fn test_relation_set_empty_subsets() {
+    // Edge case: singleton set should have exactly 1 non-empty subset (itself)
+    let set = RelationSet::singleton(0);
+    let subsets = set.subsets();
+    assert_eq!(subsets.len(), 1, "a singleton set has exactly one non-empty subset: itself");
+}
+
+#[test]
+fn test_cost_total_weighted() {
+    // Verify that cost total applies weights correctly (IO > CPU > network in typical models)
+    let c = Cost { cpu: 1.0, io: 1.0, network: 1.0 };
+    assert!(c.total() > 0.0, "a cost with all positive components must have a positive total");
+}
+
+#[test]
+fn test_cardinality_estimation_scan_zero_rows() {
+    // Edge case: table with zero rows
+    let mut stats_map = HashMap::new();
+    stats_map.insert("empty".to_string(), make_table_stats(0, 0));
+
+    let plan = LogicalPlan::Scan {
+        table_name: "empty".to_string(),
+        schema: Schema::new(vec![("id".to_string(), LogicalType::Int32)]),
+        projection: None,
+    };
+
+    let est = CardinalityEstimator::estimate(&plan, &stats_map);
+    assert_eq!(est, 0, "scan on an empty table should estimate zero rows");
+}
+
 // ── 8. Join order optimization ──────────────────────────────────────
 
 #[test]

@@ -129,6 +129,20 @@ fn test_aggregate_repartition() {
     assert!(!fragments.is_empty(), "distributed aggregation needs partial-agg fragments on workers and a final-agg fragment on the coordinator");
 }
 
+// ── 6b. Edge cases ───────────────────────────────────────────────────
+
+#[test]
+fn test_fragment_ids_sequential() {
+    // Edge case: verify fragment IDs are always sequential from 0
+    let mut builder = FragmentBuilder::new();
+    for i in 0..5 {
+        let id = builder.add_fragment(make_scan("t"), None, Some(ExchangeType::Gather));
+        assert_eq!(id, i, "fragment IDs must be assigned sequentially starting from 0");
+    }
+    let fragments = builder.build();
+    assert_eq!(fragments.len(), 5, "all added fragments must appear in the built result");
+}
+
 // ── 7. Multi-join fragments ─────────────────────────────────────────
 
 #[test]

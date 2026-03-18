@@ -8,6 +8,8 @@ which are often tiny for sorted or sequential data like timestamps. Combined, th
 compress a column of sequential timestamps from 8 bytes/value down to fractions of a
 byte.
 
+> **Unified Concept:** While this lesson spans two files, both serve ONE concept: integer compression. Bitpacking reduces bit-width, delta reduces value magnitude. They combine in `delta_bitpack`. Think of them as two stages of a single compression pipeline, split into separate files only for code organization.
+
 ## Concept Recap
 Building on Lesson 06: You used dictionary encoding to replace repeated values with integer codes. Now you will compress those integers themselves -- bitpacking shrinks the codes (or any integer column) by using only the bits needed, and delta encoding transforms sequential data into tiny differences before packing.
 

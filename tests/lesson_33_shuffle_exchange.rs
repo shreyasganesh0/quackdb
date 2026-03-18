@@ -114,6 +114,37 @@ fn test_exchange_channel_single_row() {
     assert_eq!(received.count(), 1, "single-row chunk must be delivered intact");
 }
 
+// ── 4b. Edge cases — multiple chunks through single channel ─────────
+
+#[test]
+fn test_exchange_channel_multiple_chunks() {
+    // Edge case: sending multiple chunks in sequence
+    let (sender, receiver) = ExchangeChannel::new();
+    for i in 0..5 {
+        sender.send(make_chunk(vec![i, i + 10])).unwrap();
+    }
+    sender.close();
+
+    let mut total = 0;
+    while let Some(c) = receiver.recv() {
+        total += c.count();
+    }
+    assert_eq!(total, 10, "multiple sequential sends must all be received in order without data loss");
+}
+
+#[test]
+fn test_gather_single_receiver() {
+    // Edge case: gather with only one receiver
+    let (s1, r1) = ExchangeChannel::new();
+    s1.send(make_chunk(vec![1, 2, 3])).unwrap();
+    s1.close();
+
+    let mut gather = GatherOperator::new(vec![r1], vec![LogicalType::Int32]);
+    let chunk = gather.next_chunk().unwrap();
+    assert_eq!(chunk.count(), 3, "gather with a single receiver should pass data through directly");
+    assert!(gather.next_chunk().is_none());
+}
+
 // ── 5. Shuffle routing ─────────────────────────────────────────────
 
 #[test]

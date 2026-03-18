@@ -3,6 +3,8 @@
 ## What You're Building
 The data movement operators that physically transfer data chunks between threads (simulating nodes) in a distributed execution. ExchangeChannel provides a typed communication pipe using Rust's mpsc channels. ShuffleOperator routes outgoing data to the correct partition via hashing. GatherOperator merges results from multiple sources. BroadcastOperator replicates data to all receivers. Together, these implement the exchange types planned in Lesson 32.
 
+> **Unified Concept:** Shuffle, gather, and broadcast are all ONE concept: data movement between nodes. The channel is the pipe, and the three operators are just different routing strategies (hash-route, merge, or copy-to-all). Learn the channel abstraction first, then each operator is a thin wrapper that decides *where* to send each chunk.
+
 ## Concept Recap
 Building on Lesson 32 (Distributed Plan) and Lesson 31 (Partitioning): In Lesson 32 you decided where to insert exchanges; now you build the actual data movement machinery. The ShuffleOperator uses the same hash partitioning logic from Lesson 31 to route rows to the correct destination. The GatherOperator collects results the same way Lesson 29's ParallelCollector merged morsel outputs. Think of this as the physical implementation of the logical exchange types.
 
@@ -96,6 +98,10 @@ fn merge_feeds(receivers: &[mpsc::Receiver<String>]) -> Vec<String> {
 7. Implement `BroadcastOperator::broadcast()` -- clone the chunk and send to each sender (the last one can move instead of clone).
 8. Implement `ShuffleOperator` execution -- for each row in the input chunk, hash the partition columns, determine the target partition, build per-partition chunks, then send each to the corresponding sender.
 9. Implement `DistributedExecutor::execute()` -- set up exchange channels between fragments, spawn threads for each fragment, connect them via senders/receivers, collect final results via a gather.
+
+## Rust Sidebar: Ownership Transfer Through Channels
+If you hit `use of moved value` after calling `sender.send(chunk)` or `cannot borrow as mutable because it is also borrowed`, here's what's happening: `mpsc::Sender::send()` *moves* the value into the channel -- the sender no longer owns it. If you try to use `chunk` after sending, the compiler rejects it because ownership transferred.
+The fix: for broadcast, clone the chunk for the first N-1 senders and move the original to the last: `for s in &senders[..n-1] { s.send(chunk.clone())?; } senders[n-1].send(chunk)?;`. This avoids an unnecessary final clone. For shuffle, build per-partition chunks first, then send each one -- each chunk is used exactly once.
 
 ## Reading the Tests
 - **`test_exchange_channel`** sends a 3-row chunk through a channel, closes the sender, then receives. It asserts the received chunk has 3 rows and a second recv returns None. This validates the basic send-close-receive protocol and the sentinel-based termination.
